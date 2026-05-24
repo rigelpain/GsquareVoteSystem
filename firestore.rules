@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── 設定（読み取り専用） ────────────────────
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ─── 選挙 ───────────────────────────────────
+    match /elections/{electionId} {
+      allow read: if true;
+      allow write: if false; // 管理はFirebaseコンソールから
+
+      // ─── 投票 ────────────────────────────────
+      match /votes/{voteId} {
+        allow read: if true;
+
+        // 新規作成のみ許可：
+        // 1. 匿名認証済みユーザー
+        // 2. voteId == auth.uid（1デバイス1票）
+        // 3. 自分のdeviceIdで書いている
+        // 4. 必須フィールドがある
+        allow create: if
+          request.auth != null
+          && voteId == request.auth.uid
+          && request.resource.data.deviceId == request.auth.uid
+          && request.resource.data.choice in ['A', 'B']
+          && request.resource.data.agreeReason is string
+          && request.resource.data.agreeReason.size() >= 5
+          && request.resource.data.agreeReason.size() <= 200
+          && request.resource.data.voteWeight in [1, 2];
+
+        // 更新・削除は不可（改ざん防止）
+        allow update, delete: if false;
+      }
+    }
+  }
+}

@@ -32,7 +32,32 @@ service cloud.firestore {
           && request.resource.data.agreeReason.size() <= 200
           && request.resource.data.voteWeight in [1, 2];
 
-        // 更新・削除は不可（改ざん防止）
+        // hidden フィールドのみ更新可（管理者による非表示操作）
+        allow update: if
+          request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden'])
+          && request.resource.data.hidden is bool;
+        allow delete: if false;
+      }
+
+      // ─── 共感 ─────────────────────────────────────
+      match /sympathies/{sympathyId} {
+        allow read: if false;
+        allow create: if
+          request.auth != null
+          && request.resource.data.deviceId == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      // ─── 自由記述提案 ────────────────────────────
+      match /suggestions/{suggestionId} {
+        allow read: if false;
+        allow create: if
+          request.auth != null
+          && request.resource.data.deviceId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1
+          && request.resource.data.text.size() <= 150;
         allow update, delete: if false;
       }
     }

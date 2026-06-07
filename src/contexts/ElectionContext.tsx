@@ -2,7 +2,7 @@
 // 選挙状態管理 Context
 // =============================================
 
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
@@ -11,6 +11,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats } from '../firebase/elections';
+import { checkContent } from '../utils/contentFilter';
 import type { Election, VoteStats, ChoiceId, VotePhase, DemographicData, DeviceInfo } from '../types';
 
 // ─── State型 ─────────────────────────────────
@@ -48,6 +49,7 @@ const ElectionContext = createContext<ElectionContextValue | null>(null);
 const INITIAL_STATS: VoteStats = {
   votesA: 0,
   votesB: 0,
+  votesC: 0,
   totalVoters: 0,
   comments: [],
 };
@@ -113,6 +115,9 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
 
       setPhase('submitting');
 
+      const texts = [agreeReason, disagreeReason ?? ''].filter(Boolean);
+      const { shouldHide } = checkContent(texts);
+
       const result = await submitVote({
         electionId: election.id,
         deviceId,
@@ -121,6 +126,7 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
         disagreeReason,
         demographic: demographicData ?? undefined,
         deviceInfo: deviceInfo ?? undefined,
+        hidden: shouldHide,
       });
 
       if (result.success) {

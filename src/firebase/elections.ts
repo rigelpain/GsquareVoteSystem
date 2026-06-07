@@ -8,19 +8,17 @@ import {
   getDoc,
   setDoc,
   addDoc,
-  query,
-  where,
+  updateDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
-  increment,
   runTransaction,
   Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from './config';
-import type { Election, Vote, VoteStats, ChoiceId, DemographicData, DeviceInfo } from '../types';
+import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo } from '../types';
 
 // ─── 型変換ヘルパー ───────────────────────────
 function toDate(ts: Timestamp | Date | null | undefined): Date {
@@ -70,13 +68,15 @@ export async function getActiveElection(): Promise<Election | null> {
 // ─── 投票状況をリアルタイムで監視 ───────────
 export function subscribeToVoteStats(
   electionId: string,
-  callback: (stats: VoteStats) => void
+  callback: (stats: VoteStats) => void,
+  options?: { includeHidden?: boolean }
 ): Unsubscribe {
   const votesRef = collection(db, 'elections', electionId, 'votes');
 
   return onSnapshot(votesRef, (snap) => {
     let votesA = 0;
     let votesB = 0;
+    let votesC = 0;
     let totalVoters = 0;
     const comments: VoteStats['comments'] = [];
 
@@ -85,8 +85,10 @@ export function subscribeToVoteStats(
       totalVoters++;
       if (v.choice === 'A') {
         votesA += v.voteWeight ?? 1;
-      } else {
+      } else if (v.choice === 'B') {
         votesB += v.voteWeight ?? 1;
+      } else {
+        votesC += v.voteWeight ?? 1;
       }
       comments.push({
         id: d.id,
@@ -94,13 +96,18 @@ export function subscribeToVoteStats(
         agreeReason: v.agreeReason,
         disagreeReason: v.disagreeReason,
         createdAt: toDate(v.createdAt),
+        hidden: v.hidden === true,
       });
     });
 
-    // 新しい順にソート
     comments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    callback({ votesA, votesB, totalVoters, comments });
+    // hidden=true は一般画面から除外（管理者は includeHidden=true で全件取得）
+    const visibleComments = options?.includeHidden
+      ? comments
+      : comments.filter(c => !c.hidden);
+
+    callback({ votesA, votesB, votesC, totalVoters, comments: visibleComments });
   });
 }
 
@@ -113,8 +120,9 @@ export async function submitVote(params: {
   disagreeReason?: string;
   demographic?: DemographicData;
   deviceInfo?: DeviceInfo;
+  hidden?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
-  const { electionId, deviceId, choice, agreeReason, disagreeReason, demographic, deviceInfo } = params;
+  const { electionId, deviceId, choice, agreeReason, disagreeReason, demographic, deviceInfo, hidden } = params;
   const bonusVote = Boolean(disagreeReason && disagreeReason.trim().length > 0);
   const voteWeight: 1 | 2 = bonusVote ? 2 : 1;
 
@@ -134,6 +142,7 @@ export async function submitVote(params: {
         disagreeReason: disagreeReason?.trim() || null,
         bonusVote,
         voteWeight,
+        hidden: hidden === true,
         createdAt: serverTimestamp(),
         demographic: demographic ?? null,
         deviceInfo: deviceInfo ?? null,
@@ -164,6 +173,31 @@ export async function submitSuggestion(params: {
   });
 }
 
+// ─── 管理者：コメント非表示トグル ──────────────
+export async function moderateVote(
+  electionId: string,
+  voteId: string,
+  hidden: boolean
+): Promise<void> {
+  await updateDoc(doc(db, 'elections', electionId, 'votes', voteId), { hidden });
+}
+
+// ─── 共感 ────────────────────────────────────
+// sympathyId = {deviceId}_{voteId} で重複防止（create-onlyルール）
+export async function addSympathy(params: {
+  electionId: string;
+  deviceId: string;
+  voteId: string;
+}): Promise<void> {
+  const { electionId, deviceId, voteId } = params;
+  const sympathyId = `${deviceId}_${voteId}`;
+  await setDoc(doc(db, 'elections', electionId, 'sympathies', sympathyId), {
+    deviceId,
+    voteId,
+    createdAt: serverTimestamp(),
+  });
+}
+
 // ─── 管理者：投票リセット ────────────────────
 export async function resetVotes(electionId: string): Promise<void> {
   const votesRef = collection(db, 'elections', electionId, 'votes');
@@ -183,7 +217,7 @@ export async function seedElection(): Promise<void> {
       id: 'A',
       title: 'ワイヤレス充電スポット',
       description: 'スマホを置くだけで充電できる無線給電スポットを設置！',
-      icon: '⚡',
+      icon: 'BatteryCharging',
       color: '#00C4EE',
       accentColor: '#006A8A',
       lightColor: '#B3EEFF',
@@ -192,7 +226,7 @@ export async function seedElection(): Promise<void> {
       id: 'B',
       title: '電子レンジコーナー',
       description: '階下で買った冷凍食品をその場で温めて食べられる！',
-      icon: '🍱',
+      icon: 'Microwave',
       color: '#FF6B35',
       accentColor: '#B03A10',
       lightColor: '#FFD4C2',
@@ -222,7 +256,7 @@ export async function updateElectionColors(): Promise<void> {
       id: 'A',
       title: 'ワイヤレス充電スポット',
       description: 'スマホを置くだけで充電できる無線給電スポットを設置！',
-      icon: '⚡',
+      icon: 'BatteryCharging',
       color: '#00C4EE',
       accentColor: '#006A8A',
       lightColor: '#B3EEFF',
@@ -231,7 +265,7 @@ export async function updateElectionColors(): Promise<void> {
       id: 'B',
       title: '電子レンジコーナー',
       description: '階下で買った冷凍食品をその場で温めて食べられる！',
-      icon: '🍱',
+      icon: 'Microwave',
       color: '#FF6B35',
       accentColor: '#B03A10',
       lightColor: '#FFD4C2',

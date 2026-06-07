@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Lock, Smartphone, MessageCircle, Star, BarChart3,
+  PartyPopper, Lightbulb, CheckCircle2, Loader2,
+  BatteryCharging, Microwave, AlertCircle, ChevronRight, Heart, XCircle,
+} from 'lucide-react';
 import { useElection } from '../contexts/ElectionContext';
 import VoteBar from '../components/VoteBar';
 import BackgroundParticles from '../components/BackgroundParticles';
 import HeartToken from '../components/HeartToken';
 import { MorphingToken } from '../components/SpikyToken';
+import { OptionIcon } from '../components/OptionIcon';
 import { sanitizeText } from '../utils/sanitize';
 import { collectDeviceInfo } from '../utils/deviceInfo';
-import { submitSuggestion } from '../firebase/elections';
+import { submitSuggestion, addSympathy } from '../firebase/elections';
+import { OPTION_C } from '../types';
 import type { ChoiceId } from '../types';
 
 // ─── イントロ画面 ────────────────────────────────────
@@ -42,16 +49,25 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
           </p>
           <div className="flex items-center justify-center gap-6">
             <div className="flex flex-col items-center gap-2">
-              <span className="text-5xl">⚡</span>
+              <BatteryCharging size={40} className="text-[#00C4EE]" />
               <span className="text-sm font-black text-white/80">ワイヤレス<br />充電スポット</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <span className="text-xl font-black text-white/40">VS</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <span className="text-5xl">🍱</span>
+              <Microwave size={40} className="text-[#FF6B35]" />
               <span className="text-sm font-black text-white/80">電子レンジコーナー</span>
             </div>
+          </div>
+          <div className="flex items-center gap-3 mt-4">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-white/30 text-xs font-bold">または</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+          <div className="flex flex-col items-center gap-1 mt-3">
+            <XCircle size={28} className="text-white/40" />
+            <span className="text-xs font-black text-white/40">どちらもいらない</span>
           </div>
           <p className="text-white/40 text-xs mt-4 text-center tracking-wide">今回のテーマ ： あったらいいな</p>
         </div>
@@ -139,8 +155,8 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
   }, []);
 
   const rules = [
-    { icon: '1️⃣', text: '1端末につき1票のみ投票できます' },
-    { icon: '🔒', text: '投票は取り消しできません' },
+    { icon: <Smartphone size={18} className="text-white/60 flex-shrink-0 mt-0.5" />, text: '1端末につき1票のみ投票できます' },
+    { icon: <Lock size={18} className="text-white/60 flex-shrink-0 mt-0.5" />, text: '投票は取り消しできません' },
   ];
 
   const canSubmit = age && gender && usageFrequency && consentChecked && !loading;
@@ -165,17 +181,15 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
         <h2 className="text-xl font-black text-white mb-1">参加のルール</h2>
         <p className="text-white/40 text-xs mb-4">投票前にご確認ください</p>
 
-        {/* ルール一覧 */}
         <div className="flex flex-col gap-3 mb-5">
-          {rules.map(({ icon, text }) => (
-            <div key={icon} className="flex items-start gap-3">
-              <span className="text-lg flex-shrink-0 leading-none mt-0.5">{icon}</span>
+          {rules.map(({ text }, i) => (
+            <div key={i} className="flex items-start gap-3">
+              {rules[i].icon}
               <p className="text-white/70 text-sm leading-relaxed whitespace-pre-line">{text}</p>
             </div>
           ))}
         </div>
 
-        {/* 属性入力 */}
         <div className="flex flex-col gap-5 mb-5 p-4 rounded-2xl border border-white/15"
              style={{ background: 'rgba(255,255,255,0.06)' }}>
           <p className="text-white/60 text-xs font-bold tracking-wide -mb-2">
@@ -227,7 +241,6 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
           />
         </div>
 
-        {/* データ利用同意 */}
         <label className="flex items-start gap-3 cursor-pointer mb-5">
           <input
             type="checkbox"
@@ -269,7 +282,7 @@ function SelectionScreen() {
   const { election, selectChoice, stats } = useElection();
   if (!election) return null;
 
-  const options = [election.optionA, election.optionB];
+  const abOptions = [election.optionA, election.optionB];
 
   return (
     <motion.div
@@ -289,58 +302,100 @@ function SelectionScreen() {
         <p className="text-white/70 text-sm mt-1">{election.description}</p>
       </div>
 
-      <div className="relative w-full flex flex-col gap-3">
-        {options.map((opt, i) => (
-          <motion.button
-            key={opt.id}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => selectChoice(opt.id as ChoiceId)}
-            className="splat-card w-full text-left p-5 cursor-pointer transition-all duration-200 relative overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, ${opt.color}18, rgba(255,255,255,0.06))`,
-              borderColor: `rgba(255,255,255,0.22)`,
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-20 pointer-events-none"
+      <div className="w-full flex flex-col gap-3">
+        {/* A・B の2択（VSバッジ付き） */}
+        <div className="relative flex flex-col gap-3">
+          {abOptions.map((opt, i) => (
+            <motion.button
+              key={opt.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => selectChoice(opt.id as ChoiceId)}
+              className="splat-card w-full text-left p-5 cursor-pointer transition-all duration-200 relative overflow-hidden"
               style={{
-                background: `radial-gradient(circle at ${i === 0 ? '80%' : '20%'} 50%, ${opt.color}, transparent 70%)`,
+                background: `linear-gradient(135deg, ${opt.color}18, rgba(255,255,255,0.06))`,
+                borderColor: `rgba(255,255,255,0.22)`,
               }}
-            />
-            <div className="relative flex items-center gap-4">
+            >
               <div
-                className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shadow-lg"
-                style={{ background: `${opt.color}33`, border: `2px solid ${opt.color}66` }}
-              >
-                {opt.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2
-                  className="text-xl font-black leading-tight"
-                  style={{ color: opt.lightColor }}
+                className="absolute inset-0 opacity-20 pointer-events-none"
+                style={{
+                  background: `radial-gradient(circle at ${i === 0 ? '80%' : '20%'} 50%, ${opt.color}, transparent 70%)`,
+                }}
+              />
+              <div className="relative flex items-center gap-4">
+                <div
+                  className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{ background: `${opt.color}33`, border: `2px solid ${opt.color}66`, color: opt.lightColor }}
                 >
-                  {opt.title}
-                </h2>
-                <p className="text-white/70 text-sm mt-1 leading-relaxed">
-                  {opt.description}
-                </p>
+                  <OptionIcon name={opt.icon} size={36} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2
+                    className="text-xl font-black leading-tight"
+                    style={{ color: opt.lightColor }}
+                  >
+                    {opt.title}
+                  </h2>
+                  <p className="text-white/70 text-sm mt-1 leading-relaxed">
+                    {opt.description}
+                  </p>
+                </div>
+                <ChevronRight size={22} className="flex-shrink-0 text-white/40" />
               </div>
-              <div className="flex-shrink-0 text-white/40 text-2xl">›</div>
-            </div>
-          </motion.button>
-        ))}
+            </motion.button>
+          ))}
 
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-          <div className="rounded-full w-10 h-10 flex items-center justify-center border border-white/30 backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-            <span className="text-white/70 font-black text-xs">VS</span>
+          {/* VS バッジ */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+            <div className="rounded-full w-10 h-10 flex items-center justify-center border border-white/30 backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.12)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+              <span className="text-white/70 font-black text-xs">VS</span>
+            </div>
           </div>
         </div>
+
+        {/* または仕切り */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-white/35 text-xs font-bold tracking-widest">または</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* C: どちらもいらない */}
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => selectChoice('C')}
+          className="w-full text-left p-4 cursor-pointer transition-all duration-200 relative overflow-hidden rounded-2xl border"
+          style={{
+            background: 'rgba(107,114,128,0.10)',
+            borderColor: 'rgba(107,114,128,0.35)',
+            borderStyle: 'dashed',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(107,114,128,0.20)', border: '1px solid rgba(107,114,128,0.40)' }}
+            >
+              <XCircle size={28} className="text-white/50" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-black text-white/60 leading-tight">
+                {OPTION_C.title}
+              </h2>
+              <p className="text-white/35 text-xs mt-0.5 leading-relaxed">
+                {OPTION_C.description}
+              </p>
+            </div>
+            <ChevronRight size={18} className="flex-shrink-0 text-white/25" />
+          </div>
+        </motion.button>
       </div>
 
       {stats.totalVoters > 0 && (
         <div className="w-full opacity-70">
-          <VoteBar election={election} stats={stats} showCounts />
+          <VoteBar election={election} stats={stats} showCounts optionC={OPTION_C} />
         </div>
       )}
 
@@ -357,15 +412,26 @@ function ConfirmScreen() {
   const [agreeReason, setAgreeReason] = useState('');
   const [disagreeReason, setDisagreeReason] = useState('');
   const [showDisagree, setShowDisagree] = useState(false);
+  const [wantReason, setWantReason] = useState('');
   const [errors, setErrors] = useState<{ agree?: string }>({});
 
   if (!election || !selectedChoice) return null;
 
-  const chosen = selectedChoice === 'A' ? election.optionA : election.optionB;
-  const other = selectedChoice === 'A' ? election.optionB : election.optionA;
+  const isC = selectedChoice === 'C';
+  const chosen = selectedChoice === 'A' ? election.optionA
+    : selectedChoice === 'B' ? election.optionB
+    : OPTION_C;
+  const other = selectedChoice === 'A' ? election.optionB
+    : selectedChoice === 'B' ? election.optionA
+    : null;
   const isSubmitting = phase === 'submitting';
 
   const handleSubmit = async () => {
+    if (isC) {
+      const cleanWant = wantReason ? sanitizeText(wantReason) : undefined;
+      await submitVote('どちらもいらない', cleanWant || undefined);
+      return;
+    }
     const cleanAgree = sanitizeText(agreeReason);
     if (!cleanAgree) {
       setErrors({ agree: '賛成する理由を入力してください' });
@@ -380,7 +446,9 @@ function ConfirmScreen() {
     await submitVote(cleanAgree, cleanDisagree);
   };
 
-  const bonusActive = showDisagree && disagreeReason.trim().length >= 3;
+  const bonusActive = isC
+    ? wantReason.trim().length >= 3
+    : showDisagree && disagreeReason.trim().length >= 3;
 
   return (
     <motion.div
@@ -401,7 +469,7 @@ function ConfirmScreen() {
             className="rounded-2xl px-5 py-3 inline-flex items-center gap-3 mb-3 backdrop-blur-md"
             style={{ background: `${chosen.color}20`, border: `1px solid ${chosen.color}88`, boxShadow: `0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)` }}
           >
-            <span className="text-3xl">{chosen.icon}</span>
+            <OptionIcon name={chosen.icon} size={32} color={chosen.lightColor} />
             <div className="text-left">
               <p className="text-xs font-bold text-white/60">あなたの選択</p>
               <p className="text-lg font-black" style={{ color: chosen.lightColor }}>
@@ -410,111 +478,155 @@ function ConfirmScreen() {
             </div>
           </div>
         </motion.div>
-        <p className="text-white/60 text-sm">理由を教えてください！</p>
+        <p className="text-white/60 text-sm">
+          {isC ? '欲しいものがあれば教えてください！' : '理由を教えてください！'}
+        </p>
       </div>
 
-      <div>
-        <label className="block text-white font-bold text-sm mb-2 flex items-center gap-2">
-          <HeartToken color={chosen.color} size={18} />
-          <span>{chosen.title}に賛成する理由</span>
-          <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70">必須</span>
-        </label>
-        <textarea
-          className="splat-textarea"
-          rows={3}
-          placeholder={`例：${chosen.id === 'A'
-            ? 'スマホが切れそうなとき困るので、気軽に充電できると助かります'
-            : 'お昼ごはんを持参しているのであたためられると嬉しいです'
-          }`}
-          value={agreeReason}
-          onChange={(e) => {
-            setAgreeReason(e.target.value);
-            if (errors.agree) setErrors({});
-          }}
-          disabled={isSubmitting}
-          maxLength={200}
-        />
-        {errors.agree && (
-          <p className="text-red-400 text-xs mt-1">{errors.agree}</p>
-        )}
-        <p className="text-white/30 text-xs mt-1 text-right">{agreeReason.length}/200</p>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowDisagree(!showDisagree)}
-          disabled={isSubmitting}
-          className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-200"
-          style={{
-            background: showDisagree ? `${other.color}22` : 'rgba(255,255,255,0.05)',
-            border: `2px dashed ${showDisagree ? other.color + '88' : 'rgba(255,255,255,0.15)'}`,
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-base">💬</span>
-            <div className="text-left">
-              <p className="text-white font-bold text-sm">
-                {other.icon} {other.title}への意見を書く
-              </p>
-              <p className="text-white/50 text-xs">
-                書くと <span className="text-yellow-400 font-black">+1票</span> ボーナス！（任意）
-              </p>
-            </div>
+      {isC ? (
+        /* ── C専用：欲しいもの入力（任意）──────── */
+        <div>
+          <label className="block text-white font-bold text-sm mb-2 flex items-center gap-2">
+            <Lightbulb size={18} className="text-yellow-400" />
+            <span>欲しいものがあれば教えてください</span>
+            <span className="text-xs bg-yellow-400/20 px-2 py-0.5 rounded-full text-yellow-400">+1票 任意</span>
+          </label>
+          <textarea
+            className="splat-textarea"
+            rows={3}
+            placeholder="例：コインロッカー、観光案内パンフレット、コンビニATM..."
+            value={wantReason}
+            onChange={(e) => setWantReason(e.target.value)}
+            disabled={isSubmitting}
+            maxLength={200}
+          />
+          <AnimatePresence>
+            {bonusActive && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="mt-2 flex items-center gap-2 text-yellow-400"
+              >
+                <span className="text-lg">⭐</span>
+                <span className="text-sm font-black">+1票ボーナス獲得！</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <p className="text-white/30 text-xs mt-1 text-right">{wantReason.length}/200</p>
+          <p className="text-white/30 text-xs mt-1">
+            ※ 書かなくても1票として投票できます
+          </p>
+        </div>
+      ) : (
+        /* ── A/B：賛成理由（必須）+ 反対理由（任意）── */
+        <>
+          <div>
+            <label className="block text-white font-bold text-sm mb-2 flex items-center gap-2">
+              <HeartToken color={chosen.color} size={18} />
+              <span>{chosen.title}に賛成する理由</span>
+              <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70">必須</span>
+            </label>
+            <textarea
+              className="splat-textarea"
+              rows={3}
+              placeholder={`例：${chosen.id === 'A'
+                ? 'スマホが切れそうなとき困るので、気軽に充電できると助かります'
+                : 'お昼ごはんを持参しているのであたためられると嬉しいです'
+              }`}
+              value={agreeReason}
+              onChange={(e) => {
+                setAgreeReason(e.target.value);
+                if (errors.agree) setErrors({});
+              }}
+              disabled={isSubmitting}
+              maxLength={200}
+            />
+            {errors.agree && (
+              <p className="text-red-400 text-xs mt-1">{errors.agree}</p>
+            )}
+            <p className="text-white/30 text-xs mt-1 text-right">{agreeReason.length}/200</p>
           </div>
-          <motion.span
-            animate={{ rotate: showDisagree ? 90 : 0 }}
-            className="text-white/40 text-xl"
-          >
-            ›
-          </motion.span>
-        </button>
 
-        <AnimatePresence>
-          {showDisagree && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="pt-3">
-                <textarea
-                  className="splat-textarea"
-                  rows={2}
-                  placeholder={`例：${other.id === 'A'
-                    ? '使い方のルール設定が難しそうで心配です'
-                    : '衛生面や匂いの問題が出そうです'
-                  }`}
-                  value={disagreeReason}
-                  onChange={(e) => setDisagreeReason(e.target.value)}
-                  disabled={isSubmitting}
-                  maxLength={200}
-                />
-                <AnimatePresence>
-                  {bonusActive && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="mt-2 flex items-center gap-2 text-yellow-400"
-                    >
-                      <span className="text-lg">⭐</span>
-                      <span className="text-sm font-black">+1票ボーナス獲得！</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
+          {other && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowDisagree(!showDisagree)}
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-200"
+                style={{
+                  background: showDisagree ? `${other.color}22` : 'rgba(255,255,255,0.05)',
+                  border: `2px dashed ${showDisagree ? other.color + '88' : 'rgba(255,255,255,0.15)'}`,
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={16} className="text-white/60" />
+                  <div className="text-left">
+                    <p className="text-white font-bold text-sm flex items-center gap-1">
+                      <OptionIcon name={other.icon} size={16} color={other.lightColor} /> {other.title}への意見を書く
+                    </p>
+                    <p className="text-white/50 text-xs">
+                      書くと <span className="text-yellow-400 font-black">+1票</span> ボーナス！（任意）
+                    </p>
+                  </div>
+                </div>
+                <motion.span
+                  animate={{ rotate: showDisagree ? 90 : 0 }}
+                  className="text-white/40 text-xl"
+                >
+                  ›
+                </motion.span>
+              </button>
+
+              <AnimatePresence>
+                {showDisagree && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-3">
+                      <textarea
+                        className="splat-textarea"
+                        rows={2}
+                        placeholder={`例：${other.id === 'A'
+                          ? '使い方のルール設定が難しそうで心配です'
+                          : '衛生面や匂いの問題が出そうです'
+                        }`}
+                        value={disagreeReason}
+                        onChange={(e) => setDisagreeReason(e.target.value)}
+                        disabled={isSubmitting}
+                        maxLength={200}
+                      />
+                      <AnimatePresence>
+                        {bonusActive && (
+                          <motion.div
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            className="mt-2 flex items-center gap-2 text-yellow-400"
+                          >
+                            <span className="text-lg">⭐</span>
+                            <span className="text-sm font-black">+1票ボーナス獲得！</span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+        </>
+      )}
 
       <div className="flex flex-col gap-3">
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleSubmit}
-          disabled={isSubmitting || !agreeReason.trim()}
+          disabled={isSubmitting || (!isC && !agreeReason.trim())}
           className="splat-btn w-full"
           style={{
             background: chosen.color,
@@ -568,7 +680,9 @@ function AnimationScreen() {
   }, [setPhase]);
 
   if (!election || !lastVote) return null;
-  const chosen = lastVote.choice === 'A' ? election.optionA : election.optionB;
+  const chosen = lastVote.choice === 'A' ? election.optionA
+    : lastVote.choice === 'B' ? election.optionB
+    : OPTION_C;
 
   return (
     <motion.div
@@ -587,9 +701,10 @@ function AnimationScreen() {
         transition={{ type: 'spring', stiffness: 300, damping: 15 }}
         className="text-center"
       >
-        <div className="text-5xl mb-3">{chosen.icon}</div>
+        <div className="mb-3" style={{ color: chosen.lightColor }}>
+          <OptionIcon name={chosen.icon} size={56} />
+        </div>
         <h2 className="text-2xl font-black text-white">投票ありがとう！</h2>
-        <p className="text-white/70 mt-1">あなたの声がGスクエアをつくる</p>
         {lastVote.bonusVote && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -597,7 +712,8 @@ function AnimationScreen() {
             transition={{ delay: 0.5 }}
             className="mt-2 inline-flex items-center gap-2 bg-yellow-400/20 border border-yellow-400/50 rounded-full px-4 py-1"
           >
-            <span className="text-yellow-400 font-black text-sm">⭐ +1票ボーナス付き！ 計2票</span>
+            <Star size={14} className="text-yellow-400" />
+            <span className="text-yellow-400 font-black text-sm">+1票ボーナス付き！ 計2票</span>
           </motion.div>
         )}
       </motion.div>
@@ -609,8 +725,8 @@ function AnimationScreen() {
               initial={{ scale: 0 }}
               animate={{
                 scale: [0, 1.3, 1],
-                x: step === 'bar' ? (lastVote.choice === 'A' ? -100 : 100) : 0,
-                opacity: step === 'done' ? 0 : 1,
+                x: step === 'bar' ? (lastVote.choice === 'A' ? -100 : lastVote.choice === 'B' ? 100 : 0) : 0,
+                opacity: 1,
               }}
               transition={{
                 scale: { duration: 0.5 },
@@ -627,7 +743,7 @@ function AnimationScreen() {
             initial={{ scale: 0 }}
             animate={{
               scale: 1,
-              x: step === 'bar' ? (lastVote.choice === 'A' ? -60 : 60) : 0,
+              x: step === 'bar' ? (lastVote.choice === 'A' ? -60 : lastVote.choice === 'B' ? 60 : 0) : 0,
             }}
             transition={{ x: { duration: 0.6 } }}
           >
@@ -643,7 +759,7 @@ function AnimationScreen() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-sm"
           >
-            <VoteBar election={election} stats={stats} showCounts />
+            <VoteBar election={election} stats={stats} showCounts optionC={OPTION_C} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -665,25 +781,104 @@ function ResultScreen() {
   const [suggestion, setSuggestion] = useState('');
   const [suggestionSubmitted, setSuggestionSubmitted] = useState(false);
   const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(false);
+  const [sympathized, setSympathized] = useState<Set<string>>(() => {
+    if (!election) return new Set();
+    const key = `sympathized_${election?.id}`;
+    try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
+  });
 
   if (!election) return null;
+
+  const handleSympathy = async (voteId: string) => {
+    if (!deviceId || sympathized.has(voteId)) return;
+    const next = new Set(sympathized).add(voteId);
+    setSympathized(next);
+    localStorage.setItem(`sympathized_${election.id}`, JSON.stringify([...next]));
+    try {
+      await addSympathy({ electionId: election.id, deviceId, voteId });
+    } catch {
+      // Firestore create失敗（重複等）はUI状態はそのまま維持
+    }
+  };
 
   const handleSuggestion = async () => {
     const clean = sanitizeText(suggestion);
     if (!clean || !deviceId) return;
     setSuggestionSubmitting(true);
+    setSuggestionError(false);
     try {
       await submitSuggestion({ electionId: election.id, deviceId, text: clean });
       setSuggestionSubmitted(true);
     } catch {
-      // ignore
+      setSuggestionError(true);
     }
     setSuggestionSubmitting(false);
   };
+
   const isAlreadyVoted = !lastVote;
-  const total = stats.votesA + stats.votesB;
-  const leaderId: ChoiceId | null = total === 0 ? null : stats.votesA > stats.votesB ? 'A' : 'B';
-  const leader = leaderId ? (leaderId === 'A' ? election.optionA : election.optionB) : null;
+  const total = stats.votesA + stats.votesB + stats.votesC;
+  const leaderId: ChoiceId | null = total === 0 ? null
+    : stats.votesA >= stats.votesB && stats.votesA >= stats.votesC ? 'A'
+    : stats.votesB >= stats.votesC ? 'B'
+    : 'C';
+  const leader = leaderId === 'A' ? election.optionA
+    : leaderId === 'B' ? election.optionB
+    : leaderId === 'C' ? OPTION_C
+    : null;
+
+  const commentsA = stats.comments.filter(c => c.choice === 'A');
+  const commentsB = stats.comments.filter(c => c.choice === 'B');
+  const commentsC = stats.comments.filter(c => c.choice === 'C');
+
+  const renderABColumn = (comments: typeof stats.comments, opt: typeof election.optionA) => (
+    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+      <div className="flex items-center gap-1 mb-1">
+        <OptionIcon name={opt.icon} size={13} color={opt.lightColor} />
+        <span className="text-xs font-black truncate" style={{ color: opt.lightColor }}>
+          {opt.title}
+        </span>
+        <span className="text-white/30 text-xs ml-auto flex-shrink-0">{comments.length}件</span>
+      </div>
+      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+        {comments.length === 0 ? (
+          <p className="text-white/20 text-xs text-center py-4">まだ意見なし</p>
+        ) : comments.map((c) => {
+          const done = sympathized.has(c.id);
+          return (
+            <div
+              key={c.id}
+              className="rounded-lg p-2 backdrop-blur-sm"
+              style={{
+                background: `${opt.color}0d`,
+                border: `1px solid ${opt.color}30`,
+              }}
+            >
+              <p className="text-white/80 text-xs leading-relaxed">{c.agreeReason}</p>
+              {c.disagreeReason && (
+                <p className="text-white/35 text-xs mt-1 italic leading-tight">↔ {c.disagreeReason}</p>
+              )}
+              <button
+                onClick={() => handleSympathy(c.id)}
+                disabled={done}
+                className="mt-1.5 flex items-center gap-1 transition-opacity"
+                style={{ opacity: done ? 1 : 0.45 }}
+              >
+                <Heart
+                  size={12}
+                  fill={done ? opt.color : 'none'}
+                  color={done ? opt.color : 'rgba(255,255,255,0.5)'}
+                />
+                <span className="text-xs" style={{ color: done ? opt.lightColor : 'rgba(255,255,255,0.4)' }}>
+                  {done ? 'ありがとう' : '共感する'}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <motion.div
@@ -695,22 +890,22 @@ function ResultScreen() {
       <div className="text-center">
         {isAlreadyVoted ? (
           <>
-            <p className="text-3xl mb-2">📊</p>
+            <BarChart3 size={36} className="text-white/60 mb-2 mx-auto" />
             <h2 className="text-xl font-black text-white">現在の投票状況</h2>
             <p className="text-white/50 text-sm mt-1">すでに投票済みです</p>
           </>
         ) : (
           <>
-            <motion.p
+            <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', delay: 0.2 }}
-              className="text-4xl mb-2"
+              className="mb-2 flex justify-center"
             >
-              🎉
-            </motion.p>
-            <h2 className="text-xl font-black text-white">投票完了！</h2>
-            <p className="text-white/60 text-sm mt-1">ありがとう、あなたの声が届いた！</p>
+              <PartyPopper size={40} className="text-[#00C4EE]" />
+            </motion.div>
+            <h2 className="text-xl font-black text-white">投票完了</h2>
+            <p className="text-white/60 text-sm mt-1">ありがとう！</p>
           </>
         )}
       </div>
@@ -730,7 +925,7 @@ function ResultScreen() {
         >
           <p className="text-white/60 text-xs mb-1">現在リード中</p>
           <div className="flex items-center justify-center gap-2">
-            <span className="text-3xl">{leader.icon}</span>
+            <OptionIcon name={leader.icon} size={32} color={leader.lightColor} />
             <span className="text-xl font-black" style={{ color: leader.lightColor }}>
               {leader.title}
             </span>
@@ -739,39 +934,60 @@ function ResultScreen() {
       )}
 
       <div className="w-full">
-        <VoteBar election={election} stats={stats} showCounts />
+        <VoteBar election={election} stats={stats} showCounts optionC={OPTION_C} />
       </div>
 
-      {stats.comments.length > 0 && (
+      {/* A / B コメント */}
+      {(commentsA.length > 0 || commentsB.length > 0) && (
         <div className="w-full">
           <h3 className="text-white/60 text-sm font-bold mb-3 flex items-center gap-2">
-            <span>💬</span> みんなの声（最新）
+            <MessageCircle size={14} /> みんなの声
           </h3>
-          <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-            {stats.comments.slice(0, 10).map((c) => {
-              const opt = c.choice === 'A' ? election.optionA : election.optionB;
+          <div className="flex gap-3">
+            {renderABColumn(commentsA, election.optionA)}
+            <div className="w-px bg-white/10 self-stretch" />
+            {renderABColumn(commentsB, election.optionB)}
+          </div>
+        </div>
+      )}
+
+      {/* C コメント（欲しいもの一覧） */}
+      {commentsC.length > 0 && (
+        <div className="w-full">
+          <h3 className="text-white/60 text-sm font-bold mb-3 flex items-center gap-2">
+            <Lightbulb size={14} className="text-yellow-400" />
+            <span>「欲しいもの」の声 ({commentsC.length}件)</span>
+          </h3>
+          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+            {commentsC.map((c) => {
+              const done = sympathized.has(c.id);
+              const displayText = c.disagreeReason || c.agreeReason;
+              if (!c.disagreeReason) return null;
               return (
                 <div
                   key={c.id}
-                  className="rounded-xl p-3 backdrop-blur-sm"
+                  className="rounded-lg p-2.5 backdrop-blur-sm"
                   style={{
-                    background: `rgba(255,255,255,0.06)`,
-                    border: `1px solid rgba(255,255,255,0.12)`,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    background: 'rgba(107,114,128,0.10)',
+                    border: '1px solid rgba(107,114,128,0.25)',
                   }}
                 >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-sm">{opt.icon}</span>
-                    <span className="text-xs font-bold" style={{ color: opt.lightColor }}>
-                      {opt.title}に賛成
+                  <p className="text-white/75 text-xs leading-relaxed">{displayText}</p>
+                  <button
+                    onClick={() => handleSympathy(c.id)}
+                    disabled={done}
+                    className="mt-1.5 flex items-center gap-1 transition-opacity"
+                    style={{ opacity: done ? 1 : 0.45 }}
+                  >
+                    <Heart
+                      size={12}
+                      fill={done ? '#6B7280' : 'none'}
+                      color={done ? '#E5E7EB' : 'rgba(255,255,255,0.5)'}
+                    />
+                    <span className="text-xs" style={{ color: done ? '#E5E7EB' : 'rgba(255,255,255,0.4)' }}>
+                      {done ? 'ありがとう' : '共感する'}
                     </span>
-                  </div>
-                  <p className="text-white/80 text-sm leading-relaxed">{c.agreeReason}</p>
-                  {c.disagreeReason && (
-                    <p className="text-white/40 text-xs mt-1 italic">
-                      ↔ {c.disagreeReason}
-                    </p>
-                  )}
+                  </button>
                 </div>
               );
             })}
@@ -785,7 +1001,7 @@ function ResultScreen() {
         style={{ background: 'rgba(255,255,255,0.05)' }}
       >
         <h3 className="text-white/70 text-sm font-bold mb-0.5 flex items-center gap-2">
-          <span>💡</span> 他にGスクエアに置いてほしいものは？
+          <Lightbulb size={14} /> 他にGスクエアに置いてほしいものは？
         </h3>
         <p className="text-white/35 text-xs mb-3">自由にご記入ください（任意）</p>
 
@@ -815,6 +1031,9 @@ function ResultScreen() {
                 {suggestionSubmitting ? '送信中...' : '送る'}
               </motion.button>
             </div>
+            {suggestionError && (
+              <p className="text-red-400 text-xs text-center mt-1">送信に失敗しました。もう一度試してください。</p>
+            )}
           </>
         ) : (
           <motion.div
@@ -822,7 +1041,10 @@ function ResultScreen() {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-2"
           >
-            <p className="text-[#00C4EE] font-black text-sm">📨 ありがとう！</p>
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <CheckCircle2 size={16} className="text-[#00C4EE]" />
+              <p className="text-[#00C4EE] font-black text-sm">ありがとう！</p>
+            </div>
             <p className="text-white/40 text-xs mt-0.5">ご意見を受け付けました</p>
           </motion.div>
         )}
@@ -839,6 +1061,12 @@ function ResultScreen() {
 export default function VotePage() {
   const [appScreen, setAppScreen] = useState<'intro' | 'consent' | 'vote'>('intro');
   const { election, stats, phase, loading, error } = useElection();
+
+  useEffect(() => {
+    if (phase === 'already_voted' && appScreen !== 'vote') {
+      setAppScreen('vote');
+    }
+  }, [phase]);
 
   if (appScreen === 'intro') {
     return <IntroScreen onNext={() => setAppScreen('consent')} />;
@@ -861,7 +1089,7 @@ export default function VotePage() {
           transition={{ repeat: Infinity, duration: 1.5 }}
           className="text-center"
         >
-          <p className="text-4xl mb-4">⚡</p>
+          <Loader2 size={40} className="text-[#00C4EE] mb-4 mx-auto animate-spin" />
           <p className="text-white/60 font-bold">読み込み中...</p>
         </motion.div>
       </div>
@@ -872,7 +1100,7 @@ export default function VotePage() {
     return (
       <div className="min-h-screen flex items-center justify-center ink-bg px-4">
         <div className="text-center max-w-sm">
-          <p className="text-4xl mb-4">🙈</p>
+          <AlertCircle size={40} className="text-red-400 mb-4 mx-auto" />
           <p className="text-white font-bold text-lg">{error}</p>
           <button
             onClick={() => window.location.reload()}

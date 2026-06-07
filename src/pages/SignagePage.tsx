@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
+import { OptionIcon } from '../components/OptionIcon';
+import { OPTION_C } from '../types';
 import type { Election, VoteStats } from '../types';
 
 // QRコードはqrcode.reactなどを使うが、
@@ -28,7 +30,7 @@ function QRCodeImg({ url, size = 200 }: { url: string; size?: number }) {
 
 export default function SignagePage() {
   const [election, setElection] = useState<Election | null>(null);
-  const [stats, setStats] = useState<VoteStats>({ votesA: 0, votesB: 0, totalVoters: 0, comments: [] });
+  const [stats, setStats] = useState<VoteStats>({ votesA: 0, votesB: 0, votesC: 0, totalVoters: 0, comments: [] });
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
 
@@ -71,9 +73,10 @@ export default function SignagePage() {
     );
   }
 
-  const total = stats.votesA + stats.votesB;
-  const pctA = total === 0 ? 50 : Math.round((stats.votesA / total) * 100);
-  const pctB = 100 - pctA;
+  const total = stats.votesA + stats.votesB + stats.votesC;
+  const pctA = total === 0 ? 33 : Math.round((stats.votesA / total) * 100);
+  const pctB = total === 0 ? 33 : Math.round((stats.votesB / total) * 100);
+  const pctC = 100 - pctA - pctB;
 
   // コメントのローテーション
   const visibleComment = stats.comments.length > 0
@@ -119,7 +122,9 @@ export default function SignagePage() {
               animate={{ borderColor: [`${opt.color}80`, `${opt.color}cc`, `${opt.color}80`] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <div className="text-6xl mb-3">{opt.icon}</div>
+              <div className="mb-3" style={{ color: opt.lightColor }}>
+                <OptionIcon name={opt.icon} size={60} />
+              </div>
               <h2 className="font-black text-xl leading-tight" style={{ color: opt.lightColor }}>
                 {opt.title}
               </h2>
@@ -138,26 +143,36 @@ export default function SignagePage() {
           ))}
         </div>
 
-        {/* 投票バー */}
+        {/* 投票バー（3択） */}
         <div className="w-full">
-          <div className="relative w-full h-12 rounded-full overflow-hidden bg-gray-900/60">
+          <div className="relative w-full h-12 rounded-full overflow-hidden bg-gray-900/60 flex">
             <motion.div
-              className="absolute left-0 top-0 h-full"
+              className="h-full flex items-center pl-3 flex-shrink-0"
               style={{ background: election.optionA.color }}
               animate={{ width: `${pctA}%` }}
               transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
-            />
+            >
+              {pctA > 10 && <span className="text-white font-black text-sm drop-shadow-lg">{pctA}%</span>}
+            </motion.div>
             <motion.div
-              className="absolute right-0 top-0 h-full"
+              className="h-full flex items-center justify-center flex-shrink-0"
+              style={{ background: OPTION_C.color }}
+              animate={{ width: `${pctC}%` }}
+              transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
+            >
+              {pctC > 10 && <span className="text-white font-black text-sm drop-shadow-lg">{pctC}%</span>}
+            </motion.div>
+            <motion.div
+              className="h-full flex items-center pr-3 justify-end flex-shrink-0"
               style={{ background: election.optionB.color }}
               animate={{ width: `${pctB}%` }}
               transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-white font-black text-sm drop-shadow-lg z-10">
-                {stats.totalVoters}人が投票中
-              </span>
-            </div>
+            >
+              {pctB > 10 && <span className="text-white font-black text-sm drop-shadow-lg">{pctB}%</span>}
+            </motion.div>
+          </div>
+          <div className="text-center mt-2">
+            <span className="text-white/50 text-sm">{stats.totalVoters}人が投票中</span>
           </div>
         </div>
 
@@ -172,15 +187,19 @@ export default function SignagePage() {
               className="w-full rounded-2xl px-5 py-4 bg-white/5 border border-white/10 min-h-16"
             >
               {(() => {
-                const opt = visibleComment.choice === 'A' ? election.optionA : election.optionB;
+                const opt = visibleComment.choice === 'A' ? election.optionA
+                  : visibleComment.choice === 'B' ? election.optionB
+                  : OPTION_C;
                 return (
                   <>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-base">{opt.icon}</span>
+                      <OptionIcon name={opt.icon} size={16} color={opt.lightColor} />
                       <span className="text-xs font-bold text-white/50">みんなの声</span>
                     </div>
                     <p className="text-white/80 text-sm leading-relaxed">
-                      "{visibleComment.agreeReason}"
+                      "{visibleComment.choice === 'C' && visibleComment.disagreeReason
+                        ? visibleComment.disagreeReason
+                        : visibleComment.agreeReason}"
                     </p>
                   </>
                 );

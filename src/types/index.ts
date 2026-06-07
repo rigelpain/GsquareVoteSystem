@@ -2,7 +2,7 @@
 // Gスクエア投票アプリ 型定義
 // =============================================
 
-export type ChoiceId = 'A' | 'B';
+export type ChoiceId = 'A' | 'B' | 'C';
 
 export interface ElectionOption {
   id: ChoiceId;
@@ -40,9 +40,21 @@ export interface Vote {
 export interface VoteStats {
   votesA: number;  // 重み付き合計
   votesB: number;  // 重み付き合計
+  votesC: number;  // 重み付き合計（どちらもいらない）
   totalVoters: number; // 投票者数（人）
   comments: VoteComment[];
 }
+
+// 「どちらもいらない」固定オプション
+export const OPTION_C: ElectionOption = {
+  id: 'C',
+  title: 'どちらもいらない',
+  description: '別のアイデアがある！欲しいものを教えてください',
+  icon: 'XCircle',
+  color: '#6B7280',
+  accentColor: '#374151',
+  lightColor: '#E5E7EB',
+};
 
 export interface VoteComment {
   id: string;
@@ -50,6 +62,7 @@ export interface VoteComment {
   agreeReason: string;
   disagreeReason?: string;
   createdAt: Date;
+  hidden?: boolean;
 }
 
 export interface DemographicData {

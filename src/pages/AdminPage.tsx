@@ -5,8 +5,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getActiveElection, subscribeToVoteStats, resetVotes } from '../firebase/elections';
+import { BarChart3, MessageCircle, Heart, EyeOff, Eye } from 'lucide-react';
+import { getActiveElection, subscribeToVoteStats, resetVotes, moderateVote } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
+import { OptionIcon } from '../components/OptionIcon';
+import { OPTION_C } from '../types';
 import type { Election, VoteStats } from '../types';
 
 // 環境変数または固定パスワード（本番では環境変数へ）
@@ -17,11 +20,11 @@ export default function AdminPage() {
   const [pw, setPw] = useState('');
   const [pwError, setPwError] = useState('');
   const [election, setElection] = useState<Election | null>(null);
-  const [stats, setStats] = useState<VoteStats>({ votesA: 0, votesB: 0, totalVoters: 0, comments: [] });
+  const [stats, setStats] = useState<VoteStats>({ votesA: 0, votesB: 0, votesC: 0, totalVoters: 0, comments: [] });
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'A' | 'B'>('all');
+  const [filter, setFilter] = useState<'all' | 'A' | 'B' | 'C'>('all');
 
   // 認証
   const handleLogin = () => {
@@ -44,7 +47,7 @@ export default function AdminPage() {
       const el = await getActiveElection();
       if (!el) { setLoading(false); return; }
       setElection(el);
-      unsubscribe = subscribeToVoteStats(el.id, setStats);
+      unsubscribe = subscribeToVoteStats(el.id, setStats, { includeHidden: true });
       setLoading(false);
     })();
 
@@ -113,7 +116,7 @@ export default function AdminPage() {
     <div className="min-h-screen ink-bg">
       {/* ヘッダー */}
       <header className="bg-gray-900/80 border-b border-white/10 px-5 py-4 flex items-center justify-between sticky top-0 z-20 backdrop-blur-sm">
-        <h1 className="text-white font-black text-lg">📊 投票管理</h1>
+        <h1 className="text-white font-black text-lg flex items-center gap-2"><BarChart3 size={20} /> 投票管理</h1>
         <button
           onClick={() => setAuthed(false)}
           className="text-white/40 text-sm hover:text-white/70 transition-colors"
@@ -136,47 +139,66 @@ export default function AdminPage() {
               </h2>
               <p className="text-white font-black text-lg mb-4">{election.title}</p>
 
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
                 <div className="text-center">
-                  <p className="text-3xl font-black" style={{ color: election.optionA.color }}>
+                  <p className="text-2xl font-black" style={{ color: election.optionA.color }}>
                     {stats.votesA}
                   </p>
-                  <p className="text-white/50 text-xs mt-1">
-                    {election.optionA.icon} {election.optionA.title}
+                  <p className="text-white/50 text-xs mt-1 flex items-center justify-center gap-1">
+                    <OptionIcon name={election.optionA.icon} size={12} color={election.optionA.lightColor} /> A
                   </p>
+                  <p className="text-white/30 text-xs truncate">{election.optionA.title}</p>
                 </div>
                 <div className="text-center border-x border-white/10">
-                  <p className="text-3xl font-black text-white">{stats.totalVoters}</p>
-                  <p className="text-white/50 text-xs mt-1">投票者数</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-black" style={{ color: election.optionB.color }}>
+                  <p className="text-2xl font-black" style={{ color: election.optionB.color }}>
                     {stats.votesB}
                   </p>
-                  <p className="text-white/50 text-xs mt-1">
-                    {election.optionB.icon} {election.optionB.title}
+                  <p className="text-white/50 text-xs mt-1 flex items-center justify-center gap-1">
+                    <OptionIcon name={election.optionB.icon} size={12} color={election.optionB.lightColor} /> B
                   </p>
+                  <p className="text-white/30 text-xs truncate">{election.optionB.title}</p>
+                </div>
+                <div className="text-center border-r border-white/10">
+                  <p className="text-2xl font-black" style={{ color: OPTION_C.color }}>
+                    {stats.votesC}
+                  </p>
+                  <p className="text-white/50 text-xs mt-1 flex items-center justify-center gap-1">
+                    <OptionIcon name={OPTION_C.icon} size={12} color={OPTION_C.lightColor} /> C
+                  </p>
+                  <p className="text-white/30 text-xs truncate">どちらも不要</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-black text-white">{stats.totalVoters}</p>
+                  <p className="text-white/50 text-xs mt-1">投票者数</p>
                 </div>
               </div>
 
               {/* バー */}
               {(() => {
-                const total = stats.votesA + stats.votesB;
-                const pctA = total === 0 ? 50 : Math.round((stats.votesA / total) * 100);
-                const pctB = 100 - pctA;
+                const total = stats.votesA + stats.votesB + stats.votesC;
+                const pctA = total === 0 ? 33.33 : (stats.votesA / total) * 100;
+                const pctB = total === 0 ? 33.33 : (stats.votesB / total) * 100;
+                const pctC = total === 0 ? 33.34 : 100 - pctA - pctB;
+                const rA = Math.round(pctA), rB = Math.round(pctB), rC = 100 - rA - rB;
                 return (
-                  <div className="relative w-full h-8 rounded-full overflow-hidden bg-gray-900">
+                  <div className="relative w-full h-8 rounded-full overflow-hidden bg-gray-900 flex">
                     <div
-                      className="absolute left-0 top-0 h-full flex items-center pl-3 transition-all duration-700"
+                      className="h-full flex items-center pl-2 transition-all duration-700 flex-shrink-0"
                       style={{ width: `${pctA}%`, background: election.optionA.color }}
                     >
-                      {pctA > 10 && <span className="text-white text-xs font-black">{pctA}%</span>}
+                      {rA > 10 && <span className="text-white text-xs font-black">{rA}%</span>}
                     </div>
                     <div
-                      className="absolute right-0 top-0 h-full flex items-center pr-3 transition-all duration-700"
+                      className="h-full flex items-center justify-center transition-all duration-700 flex-shrink-0"
+                      style={{ width: `${pctC}%`, background: OPTION_C.color }}
+                    >
+                      {rC > 10 && <span className="text-white text-xs font-black">{rC}%</span>}
+                    </div>
+                    <div
+                      className="h-full flex items-center pr-2 justify-end transition-all duration-700 flex-shrink-0"
                       style={{ width: `${pctB}%`, background: election.optionB.color }}
                     >
-                      {pctB > 10 && <span className="text-white text-xs font-black">{pctB}%</span>}
+                      {rB > 10 && <span className="text-white text-xs font-black">{rB}%</span>}
                     </div>
                   </div>
                 );
@@ -223,34 +245,46 @@ export default function AdminPage() {
             {/* コメント一覧 */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-white font-bold">
-                  💬 コメント一覧（{filteredComments.length}件）
+                <h2 className="text-white font-bold flex items-center gap-2">
+                  <MessageCircle size={16} /> コメント一覧（{filteredComments.length}件）
                 </h2>
-                <div className="flex gap-2">
-                  {(['all', 'A', 'B'] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setFilter(f)}
-                      className="text-xs px-3 py-1.5 rounded-full font-bold transition-all"
-                      style={{
-                        background: filter === f
-                          ? f === 'A' ? election.optionA.color
-                          : f === 'B' ? election.optionB.color
-                          : 'white'
-                          : 'rgba(255,255,255,0.1)',
-                        color: filter === f ? '#000' : 'rgba(255,255,255,0.6)',
-                      }}
-                    >
-                      {f === 'all' ? '全て' : f === 'A' ? `${election.optionA.icon}A` : `${election.optionB.icon}B`}
-                    </button>
-                  ))}
+                <div className="flex gap-2 flex-wrap">
+                  {(['all', 'A', 'B', 'C'] as const).map((f) => {
+                    const fColor = f === 'A' ? election.optionA.color
+                      : f === 'B' ? election.optionB.color
+                      : f === 'C' ? OPTION_C.color
+                      : '#fff';
+                    const fIcon = f === 'A' ? election.optionA.icon
+                      : f === 'B' ? election.optionB.icon
+                      : OPTION_C.icon;
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className="text-xs px-3 py-1.5 rounded-full font-bold transition-all"
+                        style={{
+                          background: filter === f ? fColor : 'rgba(255,255,255,0.1)',
+                          color: filter === f ? (f === 'all' ? '#000' : '#fff') : 'rgba(255,255,255,0.6)',
+                        }}
+                      >
+                        {f === 'all' ? '全て' : (
+                          <span className="flex items-center gap-1">
+                            <OptionIcon name={fIcon} size={12} />
+                            {f}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <AnimatePresence>
                   {filteredComments.map((c) => {
-                    const opt = c.choice === 'A' ? election.optionA : election.optionB;
+                    const opt = c.choice === 'A' ? election.optionA
+                      : c.choice === 'B' ? election.optionB
+                      : OPTION_C;
                     return (
                       <motion.div
                         key={c.id}
@@ -265,10 +299,10 @@ export default function AdminPage() {
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <span
-                            className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                             style={{ background: opt.color, color: '#fff' }}
                           >
-                            {opt.icon} {opt.title}
+                            <OptionIcon name={opt.icon} size={12} /> {opt.title}
                           </span>
                           <span className="text-white/30 text-xs">
                             {c.createdAt.toLocaleDateString('ja-JP', {
@@ -277,14 +311,48 @@ export default function AdminPage() {
                             })}
                           </span>
                         </div>
-                        <p className="text-white/90 text-sm leading-relaxed">
-                          ❤️ {c.agreeReason}
-                        </p>
-                        {c.disagreeReason && (
-                          <p className="text-white/50 text-sm mt-1.5 leading-relaxed">
-                            💬 {c.disagreeReason}
-                          </p>
-                        )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            {c.choice === 'C' ? (
+                              <>
+                                <p className="text-white/50 text-xs mb-1">どちらもいらない票</p>
+                                {c.disagreeReason ? (
+                                  <p className="text-white/90 text-sm leading-relaxed flex items-start gap-1.5">
+                                    <MessageCircle size={13} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                                    <span><span className="text-yellow-400 font-bold">欲しいもの: </span>{c.disagreeReason}</span>
+                                  </p>
+                                ) : (
+                                  <p className="text-white/35 text-sm italic">欲しいもの未記入</p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-white/90 text-sm leading-relaxed flex items-start gap-1.5">
+                                  <Heart size={13} className="text-red-400 flex-shrink-0 mt-0.5" /> {c.agreeReason}
+                                </p>
+                                {c.disagreeReason && (
+                                  <p className="text-white/50 text-sm mt-1.5 leading-relaxed flex items-start gap-1.5">
+                                    <MessageCircle size={13} className="flex-shrink-0 mt-0.5" /> {c.disagreeReason}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => election && moderateVote(election.id, c.id, !c.hidden)}
+                            className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all"
+                            style={{
+                              background: c.hidden ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)',
+                              color: c.hidden ? '#f87171' : 'rgba(255,255,255,0.4)',
+                            }}
+                            title={c.hidden ? '再表示する' : '非表示にする'}
+                          >
+                            {c.hidden
+                              ? <><EyeOff size={12} /> 非表示中</>
+                              : <><Eye size={12} /> 表示中</>
+                            }
+                          </button>
+                        </div>
                       </motion.div>
                     );
                   })}

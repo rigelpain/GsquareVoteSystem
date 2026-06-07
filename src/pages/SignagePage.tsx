@@ -96,29 +96,29 @@ export default function SignagePage() {
       }}
     >
       {/* ─── 上部：タイトルエリア ────────────────── */}
-      <div className="flex-shrink-0 text-center px-8 pt-10 pb-6">
+      <div className="flex-shrink-0 text-center px-6 pt-4 pb-2">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <p className="text-white/50 text-[9px] font-bold tracking-widest mb-2">
+          <p className="text-white/50 text-[9px] font-bold tracking-widest mb-1">
             みんなでつくるGスクエア
           </p>
           <h1 className="text-white font-black text-lg leading-tight">
             {election.title}
           </h1>
-          <p className="text-white/60 text-[8px] mt-2">{election.description}</p>
+          <p className="text-white/60 text-[8px] mt-1">{election.description}</p>
         </motion.div>
       </div>
 
       {/* ─── 中央：2択 + 投票バー ────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-2 min-h-0">
         {/* 2択カード */}
-        <div className="w-full flex gap-4">
+        <div className="w-full flex gap-2">
           {[election.optionA, election.optionB].map((opt) => (
             <motion.div
               key={opt.id}
-              className="flex-1 rounded-3xl p-5 text-center relative overflow-hidden"
+              className="flex-1 rounded-3xl p-3 text-center relative overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, ${opt.color}25, ${opt.accentColor}40)`,
                 border: `3px solid ${opt.color}80`,
@@ -126,19 +126,19 @@ export default function SignagePage() {
               animate={{ borderColor: [`${opt.color}80`, `${opt.color}cc`, `${opt.color}80`] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <div className="mb-3" style={{ color: opt.lightColor }}>
-                <OptionIcon name={opt.icon} size={60} />
+              <div className="mb-1" style={{ color: opt.lightColor }}>
+                <OptionIcon name={opt.icon} size={36} />
               </div>
               <h2 className="font-black text-[10px] leading-tight" style={{ color: opt.lightColor }}>
                 {opt.title}
               </h2>
-              <p className="text-white/60 text-[7px] mt-2 leading-relaxed">
+              <p className="text-white/60 text-[7px] mt-1 leading-relaxed">
                 {opt.description}
               </p>
 
               {/* 票数バッジ */}
               <div
-                className="mt-4 inline-block px-4 py-1.5 rounded-full font-black text-white text-[9px]"
+                className="mt-1 inline-block px-3 py-1 rounded-full font-black text-white text-[9px]"
                 style={{ background: opt.color }}
               >
                 {opt.id === 'A' ? pctA : pctB}%
@@ -149,7 +149,7 @@ export default function SignagePage() {
 
         {/* 投票バー（3択） */}
         <div className="w-full">
-          <div className="relative w-full h-12 rounded-full overflow-hidden bg-gray-900/60 flex">
+          <div className="relative w-full h-7 rounded-full overflow-hidden bg-gray-900/60 flex">
             <motion.div
               className="h-full flex items-center pl-3 flex-shrink-0"
               style={{ background: election.optionA.color }}
@@ -175,7 +175,7 @@ export default function SignagePage() {
               {pctB > 10 && <span className="text-white font-black text-[7px] drop-shadow-lg">{pctB}%</span>}
             </motion.div>
           </div>
-          <div className="text-center mt-2">
+          <div className="text-center mt-1">
             <span className="text-white/50 text-[7px]">{stats.totalVoters}人が投票中</span>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function SignagePage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="w-full rounded-2xl px-5 py-4 bg-white/5 border border-white/10 min-h-16"
+              className="w-full rounded-2xl px-3 py-2 bg-white/5 border border-white/10 min-h-10"
             >
               {(() => {
                 const opt = visibleComment.choice === 'A' ? election.optionA
@@ -196,8 +196,8 @@ export default function SignagePage() {
                   : OPTION_C;
                 return (
                   <>
-                    <div className="flex items-center gap-2 mb-1">
-                      <OptionIcon name={opt.icon} size={16} color={opt.lightColor} />
+                    <div className="flex items-center gap-1 mb-1">
+                      <OptionIcon name={opt.icon} size={12} color={opt.lightColor} />
                       <span className="text-[6px] font-bold text-white/50">みんなの声</span>
                     </div>
                     <p className="text-white/80 text-[7px] leading-relaxed">
@@ -214,26 +214,25 @@ export default function SignagePage() {
       </div>
 
       {/* ─── 下部：QRコード ────────────────────── */}
-      <div className="flex-shrink-0 flex items-center justify-center gap-8 px-8 py-8">
+      <div className="flex-shrink-0 flex items-center justify-center gap-3 px-6 py-3">
         <div className="text-center">
-          <QRCodeImg url={voteUrl} size={160} />
-          <p className="text-white/50 text-[7px] mt-3">スキャンして投票 📱</p>
+          <QRCodeImg url={voteUrl} size={90} />
         </div>
         <div className="flex-1">
           <div className="text-center">
-            <p className="text-white font-black text-xs leading-tight mb-2">
-              ↑ QRコードを<br />スキャンして<br />投票しよう！
+            <p className="text-white font-black text-[8px] leading-tight mb-1">
+              ↑ QRコードをスキャンして投票しよう
             </p>
             <motion.div
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="inline-block mt-3"
+              className="inline-block mt-1"
             >
               <div
-                className="px-6 py-3 rounded-full font-black text-white text-[10px]"
+                className="px-3 py-1.5 rounded-full font-black text-white text-[8px]"
                 style={{ background: 'linear-gradient(135deg, #00C4EE, #FF6B35)' }}
               >
-                投票無料！
+                投票はひとり1回のみできます
               </div>
             </motion.div>
           </div>
@@ -241,7 +240,7 @@ export default function SignagePage() {
       </div>
 
       {/* ─── フッター ────────────────────────── */}
-      <div className="flex-shrink-0 text-center pb-4">
+      <div className="flex-shrink-0 text-center pb-2">
         <p className="text-white/20 text-[6px]">函館コミュニティプラザ Gスクエア / みんなでつくるGスクエアプロジェクト</p>
       </div>
     </div>

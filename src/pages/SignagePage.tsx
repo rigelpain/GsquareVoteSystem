@@ -30,7 +30,7 @@ function QRCodeImg({ url, size = 200 }: { url: string; size?: number }) {
 function OptionCard({ opt, pct, glowSide }: { opt: ElectionOption; pct: number; glowSide: 'left' | 'right' }) {
   return (
     <motion.div
-      className="flex-1 min-w-0 rounded-2xl px-1 py-1.5 text-center relative overflow-hidden flex flex-col items-center justify-center"
+      className="flex-1 min-w-0 rounded-2xl px-1.5 py-3.5 text-center relative overflow-hidden flex flex-col items-center justify-center"
       style={{
         background: `linear-gradient(135deg, ${opt.color}25, ${opt.accentColor}40)`,
         border: `2px solid ${opt.color}80`,
@@ -44,16 +44,16 @@ function OptionCard({ opt, pct, glowSide }: { opt: ElectionOption; pct: number; 
       />
       <div className="relative flex flex-col items-center w-full">
         <div className="mb-1" style={{ color: opt.lightColor }}>
-          <OptionIcon name={opt.icon} size={18} />
+          <OptionIcon name={opt.icon} size={26} />
         </div>
-        <h2 className="font-black text-[11px] leading-tight" style={{ color: opt.lightColor }}>
+        <h2 className="font-black text-[14px] leading-tight" style={{ color: opt.lightColor }}>
           {opt.title}
         </h2>
-        <p className="text-white/60 text-[7px] mt-0.5 leading-snug line-clamp-2">
+        <p className="text-white/60 text-[9px] mt-1 leading-snug line-clamp-2">
           {opt.description}
         </p>
         <div
-          className="mt-0.5 inline-block px-2 py-0.5 rounded-full font-black text-white text-[10px]"
+          className="mt-1.5 inline-block px-3 py-1 rounded-full font-black text-white text-[15px]"
           style={{ background: opt.color }}
         >
           {pct}%
@@ -66,9 +66,9 @@ function OptionCard({ opt, pct, glowSide }: { opt: ElectionOption; pct: number; 
 // VS バッジ（カード間の区切り、横並び用）
 function VsBadge() {
   return (
-    <div className="flex items-center justify-center relative z-10 flex-shrink-0">
-      <div className="rounded-full w-6 h-6 flex items-center justify-center border border-white/30 backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.12)' }}>
-        <span className="text-white/70 font-black text-[8px]">VS</span>
+    <div className="flex items-center justify-center relative z-20 flex-shrink-0 -mx-3">
+      <div className="rounded-full w-7 h-7 flex items-center justify-center border border-white/30 backdrop-blur-md shadow-lg" style={{ background: 'rgba(20,20,30,0.55)' }}>
+        <span className="text-white/80 font-black text-[9px]">VS</span>
       </div>
     </div>
   );
@@ -136,7 +136,7 @@ export default function SignagePage() {
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
     <div
-      className="overflow-hidden flex flex-col"
+      className="relative overflow-hidden flex flex-col"
       style={{
         aspectRatio: '1000 / 1315',
         width: 'min(100vw, calc(100vh * 1000 / 1315))',
@@ -145,22 +145,22 @@ export default function SignagePage() {
         fontFamily: "'M PLUS Rounded 1c', sans-serif",
       }}
     >
-      <BackgroundParticles colorA={election.optionA.color} colorB={election.optionB.color} count={8} />
+      <BackgroundParticles colorA={election.optionA.color} colorB={election.optionB.color} count={16} position="absolute" />
 
       {/* ─── 上部：タイトルエリア ────────────────── */}
-      <div className="relative z-10 flex-shrink-0 text-center px-6 pt-2 pb-0.5">
+      <div className="relative z-10 flex-shrink-0 text-center px-6 pt-1.5 pb-0">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <p className="text-white/50 text-[10px] font-bold tracking-widest mb-0.5">
+          <p className="text-white/50 text-[9px] font-bold tracking-widest mb-0.5">
             みんなでつくるGスクエア
           </p>
-          <h1 className="text-white font-black text-[19px] leading-tight">
+          <h1 className="text-white font-black text-[17px] leading-tight">
             {election.title}
           </h1>
-          <p className="text-white/60 text-[9px] mt-0.5 leading-snug">{election.description}</p>
-          <p className="text-white/40 text-[9px] font-bold mt-0.5">投票期間：6/15 〜 7/15</p>
+          <p className="text-white/60 text-[8px] mt-0.5 leading-snug">{election.description}</p>
+          <p className="text-white/40 text-[8px] font-bold mt-0.5">投票期間：6/15 〜 7/15</p>
         </motion.div>
       </div>
 
@@ -188,14 +188,14 @@ export default function SignagePage() {
 
         {/* 投票バー（3択） */}
         <div className="w-full mt-1">
-          <div className="relative w-full h-4 rounded-full overflow-hidden bg-gray-900/60 flex">
+          <div className="relative w-full h-5 rounded-full overflow-hidden bg-gray-900/60 flex">
             <motion.div
               className="h-full flex items-center pl-3 flex-shrink-0"
               style={{ background: election.optionA.color }}
               animate={{ width: `${pctA}%` }}
               transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
             >
-              {pctA > 10 && <span className="text-white font-black text-[8px] drop-shadow-lg">{pctA}%</span>}
+              {pctA > 10 && <span className="text-white font-black text-[10px] drop-shadow-lg">{pctA}%</span>}
             </motion.div>
             <motion.div
               className="h-full flex items-center justify-center flex-shrink-0"
@@ -203,7 +203,7 @@ export default function SignagePage() {
               animate={{ width: `${pctC}%` }}
               transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
             >
-              {pctC > 10 && <span className="text-white font-black text-[8px] drop-shadow-lg">{pctC}%</span>}
+              {pctC > 10 && <span className="text-white font-black text-[10px] drop-shadow-lg">{pctC}%</span>}
             </motion.div>
             <motion.div
               className="h-full flex items-center pr-3 justify-end flex-shrink-0"
@@ -211,11 +211,11 @@ export default function SignagePage() {
               animate={{ width: `${pctB}%` }}
               transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
             >
-              {pctB > 10 && <span className="text-white font-black text-[8px] drop-shadow-lg">{pctB}%</span>}
+              {pctB > 10 && <span className="text-white font-black text-[10px] drop-shadow-lg">{pctB}%</span>}
             </motion.div>
           </div>
-          <div className="text-center mt-0.5">
-            <span className="text-white/50 text-[8px]">{stats.totalVoters}人が投票中</span>
+          <div className="text-center mt-1">
+            <span className="text-white/60 font-bold text-[12px]">{stats.totalVoters}人が投票中</span>
           </div>
         </div>
 
@@ -230,15 +230,15 @@ export default function SignagePage() {
               transition={{ duration: 0.6 }}
               className="w-full mt-0.5"
             >
-              <p className="text-[8px] font-bold text-white/40 mb-0.5">みんなの声</p>
-              <div className="flex flex-col gap-0.5">
+              <p className="text-[11px] font-bold text-white/50 mb-1">みんなの声</p>
+              <div className="flex flex-col gap-1">
                 {pageComments.map((c) => {
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
                   const text = c.choice === 'C' && c.disagreeReason ? c.disagreeReason : c.agreeReason;
                   return (
-                    <div key={c.id} className="rounded-lg px-1.5 py-0.5 bg-white/5 border border-white/10 flex items-center gap-1">
-                      <OptionIcon name={opt.icon} size={9} color={opt.lightColor} />
-                      <p className="text-white/80 text-[7px] leading-snug truncate flex-1 min-w-0">"{text}"</p>
+                    <div key={c.id} className="rounded-lg px-2 py-1 flex items-center gap-1.5" style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}>
+                      <OptionIcon name={opt.icon} size={11} color={opt.lightColor} />
+                      <p className="text-white/90 text-[10px] leading-snug truncate flex-1 min-w-0">"{text}"</p>
                     </div>
                   );
                 })}
@@ -250,29 +250,26 @@ export default function SignagePage() {
 
       {/* ─── 下部：QRコード ────────────────────── */}
       <div className="relative z-10 flex-shrink-0 flex flex-col items-center justify-center gap-1 px-6 py-1.5">
-        <QRCodeImg url={voteUrl} size={66} />
+        <QRCodeImg url={voteUrl} size={62} />
         <div className="text-center">
-          <p className="text-white font-black text-[12px] leading-tight mb-0.5">
-            ↑ QRコードをスキャンして投票しよう
-          </p>
           <motion.div
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
             className="inline-block"
           >
             <div
-              className="px-3 py-1 rounded-full font-black text-white text-[10px]"
+              className="px-3.5 py-1 rounded-full font-black text-white text-[12px]"
               style={{ background: 'linear-gradient(135deg, #00C4EE, #FF6B35)' }}
             >
-              投票はひとり1回のみできます
+              QRコードをスキャンして投票しよう
             </div>
           </motion.div>
         </div>
       </div>
 
       {/* ─── フッター ────────────────────────── */}
-      <div className="relative z-10 flex-shrink-0 text-center pb-1">
-        <p className="text-white/20 text-[7px]">函館コミュニティプラザ Gスクエア / みんなでつくるGスクエアプロジェクト</p>
+      <div className="relative z-10 flex-shrink-0 text-center pb-0.5">
+        <p className="text-white/15 text-[6px]">函館コミュニティプラザ Gスクエア / みんなでつくるGスクエアプロジェクト</p>
       </div>
     </div>
     </div>

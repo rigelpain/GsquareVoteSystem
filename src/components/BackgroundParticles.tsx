@@ -15,12 +15,14 @@ interface BackgroundParticlesProps {
   colorA: string;
   colorB: string;
   count?: number;
+  position?: 'fixed' | 'absolute';
 }
 
 export default function BackgroundParticles({
   colorA,
   colorB,
   count = 12,
+  position = 'fixed',
 }: BackgroundParticlesProps) {
   const particles = useMemo<Particle[]>(() => {
     return Array.from({ length: count }, (_, i) => ({
@@ -35,7 +37,7 @@ export default function BackgroundParticles({
   }, [colorA, colorB, count]);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div className={`${position} inset-0 pointer-events-none overflow-hidden z-0`}>
       {particles.map((p) => (
         <div
           key={p.id}

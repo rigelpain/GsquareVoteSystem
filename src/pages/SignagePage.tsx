@@ -113,38 +113,83 @@ export default function SignagePage() {
 
       {/* ─── 中央：2択 + 投票バー ────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-2 min-h-0">
-        {/* 2択カード */}
-        <div className="w-full flex gap-2">
-          {[election.optionA, election.optionB].map((opt) => (
+        {/* A・B の2択（縦並び・VSバッジ付き／VotePage構成を継承） */}
+        <div className="relative w-full flex flex-col gap-1.5">
+          {[election.optionA, election.optionB].map((opt, i) => (
             <motion.div
               key={opt.id}
-              className="flex-1 rounded-3xl p-3 text-center relative overflow-hidden"
+              className="w-full rounded-2xl p-2 relative overflow-hidden"
               style={{
-                background: `linear-gradient(135deg, ${opt.color}25, ${opt.accentColor}40)`,
-                border: `3px solid ${opt.color}80`,
+                background: `linear-gradient(135deg, ${opt.color}18, rgba(255,255,255,0.06))`,
+                border: '1px solid rgba(255,255,255,0.22)',
               }}
-              animate={{ borderColor: [`${opt.color}80`, `${opt.color}cc`, `${opt.color}80`] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <div className="mb-1" style={{ color: opt.lightColor }}>
-                <OptionIcon name={opt.icon} size={36} />
-              </div>
-              <h2 className="font-black text-[10px] leading-tight" style={{ color: opt.lightColor }}>
-                {opt.title}
-              </h2>
-              <p className="text-white/60 text-[7px] mt-1 leading-relaxed">
-                {opt.description}
-              </p>
-
-              {/* 票数バッジ */}
               <div
-                className="mt-1 inline-block px-3 py-1 rounded-full font-black text-white text-[9px]"
-                style={{ background: opt.color }}
-              >
-                {opt.id === 'A' ? pctA : pctB}%
+                className="absolute inset-0 opacity-20 pointer-events-none"
+                style={{
+                  background: `radial-gradient(circle at ${i === 0 ? '80%' : '20%'} 50%, ${opt.color}, transparent 70%)`,
+                }}
+              />
+              <div className="relative flex items-center gap-2">
+                <div
+                  className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ background: `${opt.color}33`, border: `1.5px solid ${opt.color}66`, color: opt.lightColor }}
+                >
+                  <OptionIcon name={opt.icon} size={20} />
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <h2 className="font-black text-[9px] leading-tight" style={{ color: opt.lightColor }}>
+                    {opt.title}
+                  </h2>
+                  <p className="text-white/60 text-[6px] mt-0.5 leading-snug line-clamp-2">
+                    {opt.description}
+                  </p>
+                </div>
+                {/* 得票率（投票画面の矢印アイコンの代わりに表示） */}
+                <div
+                  className="flex-shrink-0 px-2 py-0.5 rounded-full font-black text-white text-[9px]"
+                  style={{ background: opt.color }}
+                >
+                  {opt.id === 'A' ? pctA : pctB}%
+                </div>
               </div>
             </motion.div>
           ))}
+
+          {/* VS バッジ */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+            <div className="rounded-full w-6 h-6 flex items-center justify-center border border-white/30 backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.12)' }}>
+              <span className="text-white/70 font-black text-[6px]">VS</span>
+            </div>
+          </div>
+        </div>
+
+        {/* または仕切り */}
+        <div className="w-full flex items-center gap-2">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-white/35 text-[6px] font-bold tracking-widest">または</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* C: どちらもいらない */}
+        <div
+          className="w-full p-1.5 rounded-xl border relative overflow-hidden"
+          style={{ background: 'rgba(107,114,128,0.10)', borderColor: 'rgba(107,114,128,0.35)', borderStyle: 'dashed' }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(107,114,128,0.20)', border: '1px solid rgba(107,114,128,0.40)' }}
+            >
+              <OptionIcon name={OPTION_C.icon} size={14} color="rgba(255,255,255,0.5)" />
+            </div>
+            <h2 className="flex-1 min-w-0 text-left text-[8px] font-black text-white/60 leading-tight">
+              {OPTION_C.title}
+            </h2>
+            <div className="flex-shrink-0 px-2 py-0.5 rounded-full font-black text-white/70 text-[8px]" style={{ background: OPTION_C.color }}>
+              {pctC}%
+            </div>
+          </div>
         </div>
 
         {/* 投票バー（3択） */}
@@ -177,6 +222,7 @@ export default function SignagePage() {
           </div>
           <div className="text-center mt-1">
             <span className="text-white/50 text-[7px]">{stats.totalVoters}人が投票中</span>
+            <span className="text-white/30 text-[6px] ml-2">📱 QRコードをスキャンして参加しよう！</span>
           </div>
         </div>
 

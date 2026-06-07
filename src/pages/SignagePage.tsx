@@ -235,14 +235,17 @@ export default function SignagePage() {
               <div className="flex flex-col gap-1">
                 {pageComments.map((c) => {
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
+                  const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
                     <div key={c.id} className="rounded-lg px-2.5 py-1.5 flex flex-col gap-0.5" style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}>
                       <div className="flex items-center gap-1.5">
                         <OptionIcon name={opt.icon} size={13} color={opt.lightColor} />
                         <p className="text-white/90 text-[12px] leading-snug truncate flex-1 min-w-0">"{c.agreeReason}"</p>
                       </div>
-                      {c.disagreeReason && (
+                      {c.disagreeReason && opposing && (
                         <div className="flex items-center gap-1 pl-1">
+                          <OptionIcon name={opposing.icon} size={11} color={opposing.lightColor} />
+                          <span className="text-white/50 text-[9px] font-bold flex-shrink-0">に反対</span>
                           <SpikyToken color="#FF5C7A" size={11} />
                           <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">"{c.disagreeReason}"</p>
                         </div>

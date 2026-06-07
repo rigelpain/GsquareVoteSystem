@@ -10,6 +10,7 @@ import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
 import { OptionIcon } from '../components/OptionIcon';
 import BackgroundParticles from '../components/BackgroundParticles';
+import SpikyToken from '../components/SpikyToken';
 import { OPTION_C } from '../types';
 import type { Election, ElectionOption, VoteStats } from '../types';
 
@@ -230,15 +231,22 @@ export default function SignagePage() {
               transition={{ duration: 0.6 }}
               className="w-full mt-0.5"
             >
-              <p className="text-[11px] font-bold text-white/50 mb-1">みんなの声</p>
+              <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
               <div className="flex flex-col gap-1">
                 {pageComments.map((c) => {
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
-                  const text = c.choice === 'C' && c.disagreeReason ? c.disagreeReason : c.agreeReason;
                   return (
-                    <div key={c.id} className="rounded-lg px-2 py-1 flex items-center gap-1.5" style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}>
-                      <OptionIcon name={opt.icon} size={11} color={opt.lightColor} />
-                      <p className="text-white/90 text-[10px] leading-snug truncate flex-1 min-w-0">"{text}"</p>
+                    <div key={c.id} className="rounded-lg px-2.5 py-1.5 flex flex-col gap-0.5" style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}>
+                      <div className="flex items-center gap-1.5">
+                        <OptionIcon name={opt.icon} size={13} color={opt.lightColor} />
+                        <p className="text-white/90 text-[12px] leading-snug truncate flex-1 min-w-0">"{c.agreeReason}"</p>
+                      </div>
+                      {c.disagreeReason && (
+                        <div className="flex items-center gap-1 pl-1">
+                          <SpikyToken color="#FF5C7A" size={11} />
+                          <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">"{c.disagreeReason}"</p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -115,12 +115,12 @@ export default function SignagePage() {
   );
   const commentCount = allComments.length;
 
-  // 上端から順に allComments[windowTop+i] を最大 TICKER_SIZE 件表示
-  // windowTop+i >= commentCount の枠は空（スクロールが最後を超えた後の空白）
-  const visibleComments = Array.from({ length: TICKER_SIZE }, (_, i) => {
+  // 常に TICKER_SIZE 件分のスロットを確保（null = 不可視スペーサー）
+  // →「ブランク分も含めて高さ固定」を保証
+  const commentSlots = Array.from({ length: TICKER_SIZE }, (_, i) => {
     const idx = windowTop + i;
     return idx < commentCount ? allComments[idx] : null;
-  }).filter((c): c is NonNullable<typeof c> => c !== null);
+  });
 
   // 8秒ごとに windowTop++ → ウィンドウが上へ1コマ進む
   useEffect(() => {
@@ -246,13 +246,26 @@ export default function SignagePage() {
         {commentCount > 0 && (
           <div className="w-full mt-0.5">
             <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
-            {/* min-height = 5件分の高さを常に確保（スクロール末尾で空欄ができても縮まない） */}
-            <div
-              className="flex flex-col gap-1 overflow-hidden"
-              style={{ minHeight: `${TICKER_SIZE * 29 + (TICKER_SIZE - 1) * 4}px` }}
-            >
+            {/* 常に TICKER_SIZE 枠（実アイテム or 不可視スペーサー）をレンダリングして高さ固定 */}
+            <div className="flex flex-col gap-1 overflow-hidden">
               <AnimatePresence mode="popLayout">
-                {visibleComments.map((c) => {
+                {commentSlots.map((c, slotIndex) => {
+                  if (!c) {
+                    // 不可視スペーサー（高さ確保用、視覚的には透明）
+                    return (
+                      <div
+                        key={`spacer_${slotIndex}`}
+                        className="rounded-lg px-2.5 py-1.5 pointer-events-none"
+                        style={{ visibility: 'hidden' }}
+                        aria-hidden="true"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div style={{ width: 13, height: 13 }} />
+                          <p className="text-[12px] leading-snug">&nbsp;</p>
+                        </div>
+                      </div>
+                    );
+                  }
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
                   const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
@@ -268,7 +281,7 @@ export default function SignagePage() {
                     >
                       <div className="flex items-center gap-1.5">
                         <OptionIcon name={opt.icon} size={13} color={opt.lightColor} />
-                        <p className="text-white/90 text-[12px] leading-snug truncate flex-1 min-w-0">"{c.agreeReason}"</p>
+                        <p className="text-white/90 text-[12px] leading-snug truncate flex-1 min-w-0">{c.agreeReason}</p>
                       </div>
                       {c.disagreeReason && (
                         <div className="flex items-center gap-1 pl-1">
@@ -279,9 +292,12 @@ export default function SignagePage() {
                               <SpikyToken color="#FF5C7A" size={11} />
                             </>
                           ) : (
-                            <MessageCircle size={11} color="rgba(255,255,255,0.45)" />
+                            <>
+                              <MessageCircle size={11} color="rgba(255,255,255,0.45)" />
+                              <span className="text-white/50 text-[9px] font-bold flex-shrink-0">欲しいもの</span>
+                            </>
                           )}
-                          <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">"{c.disagreeReason}"</p>
+                          <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">{c.disagreeReason}</p>
                         </div>
                       )}
                     </motion.div>

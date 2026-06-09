@@ -15,7 +15,7 @@ import { sanitizeText } from '../utils/sanitize';
 import { collectDeviceInfo } from '../utils/deviceInfo';
 import { submitSuggestion, addSympathy } from '../firebase/elections';
 import { OPTION_C } from '../types';
-import type { ChoiceId } from '../types';
+import type { ChoiceId, ElectionOption } from '../types';
 
 // ─── イントロ画面 ────────────────────────────────────
 function IntroScreen({ onNext }: { onNext: () => void }) {
@@ -818,14 +818,12 @@ function ResultScreen() {
 
   const isAlreadyVoted = !lastVote;
   const total = stats.votesA + stats.votesB + stats.votesC;
-  const leaderId: ChoiceId | null = total === 0 ? null
-    : stats.votesA >= stats.votesB && stats.votesA >= stats.votesC ? 'A'
-    : stats.votesB >= stats.votesC ? 'B'
-    : 'C';
-  const leader = leaderId === 'A' ? election.optionA
-    : leaderId === 'B' ? election.optionB
-    : leaderId === 'C' ? OPTION_C
-    : null;
+  const maxVotes = Math.max(stats.votesA, stats.votesB, stats.votesC);
+  const leaders: ElectionOption[] = total === 0 ? [] : [
+    ...(stats.votesA === maxVotes ? [election.optionA] : []),
+    ...(stats.votesB === maxVotes ? [election.optionB] : []),
+    ...(stats.votesC === maxVotes ? [OPTION_C] : []),
+  ];
 
   const commentsA = stats.comments.filter(c => c.choice === 'A');
   const commentsB = stats.comments.filter(c => c.choice === 'B');
@@ -870,7 +868,7 @@ function ResultScreen() {
                   color={done ? opt.color : 'rgba(255,255,255,0.5)'}
                 />
                 <span className="text-xs" style={{ color: done ? opt.lightColor : 'rgba(255,255,255,0.4)' }}>
-                  {done ? 'ありがとう' : '共感する'}
+                  {done ? 'ありがとう' : 'いいね'}
                 </span>
               </button>
             </div>
@@ -910,25 +908,36 @@ function ResultScreen() {
         )}
       </div>
 
-      {leader && (
+      {leaders.length > 0 && (
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3 }}
           className="w-full rounded-2xl p-4 text-center"
           style={{
-            background: `${leader.color}15`,
-            border: `1px solid ${leader.color}88`,
+            background: leaders.length > 1
+              ? 'rgba(255,255,255,0.06)'
+              : `${leaders[0].color}15`,
+            border: leaders.length > 1
+              ? '1px solid rgba(255,255,255,0.25)'
+              : `1px solid ${leaders[0].color}88`,
             backdropFilter: 'blur(12px)',
             boxShadow: `0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.12)`,
           }}
         >
-          <p className="text-white/60 text-xs mb-1">現在リード中</p>
-          <div className="flex items-center justify-center gap-2">
-            <OptionIcon name={leader.icon} size={32} color={leader.lightColor} />
-            <span className="text-xl font-black" style={{ color: leader.lightColor }}>
-              {leader.title}
-            </span>
+          <p className="text-white/60 text-xs mb-2">
+            {leaders.length > 1 ? '⚖️ 同票リード中' : '現在リード中'}
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            {leaders.map((opt, i) => (
+              <div key={opt.id} className="flex items-center gap-2">
+                {i > 0 && <span className="text-white/30 text-sm">=</span>}
+                <OptionIcon name={opt.icon} size={28} color={opt.lightColor} />
+                <span className="text-lg font-black" style={{ color: opt.lightColor }}>
+                  {opt.title}
+                </span>
+              </div>
+            ))}
           </div>
         </motion.div>
       )}
@@ -985,7 +994,7 @@ function ResultScreen() {
                       color={done ? '#E5E7EB' : 'rgba(255,255,255,0.5)'}
                     />
                     <span className="text-xs" style={{ color: done ? '#E5E7EB' : 'rgba(255,255,255,0.4)' }}>
-                      {done ? 'ありがとう' : '共感する'}
+                      {done ? 'ありがとう' : 'いいね'}
                     </span>
                   </button>
                 </div>
@@ -1001,16 +1010,16 @@ function ResultScreen() {
         style={{ background: 'rgba(255,255,255,0.05)' }}
       >
         <h3 className="text-white/70 text-sm font-bold mb-0.5 flex items-center gap-2">
-          <Lightbulb size={14} /> 他にGスクエアに置いてほしいものは？
+          <Lightbulb size={14} /> Gスクエアに「あったらいいな〜」なモノ・コトはありますか？
         </h3>
-        <p className="text-white/35 text-xs mb-3">自由にご記入ください（任意）</p>
+        <p className="text-white/35 text-xs mb-3">自由にご記入ください</p>
 
         {!suggestionSubmitted ? (
           <>
             <textarea
               className="splat-textarea"
               rows={2}
-              placeholder="例：コンビニATM、コインロッカー、観光案内パンフレット..."
+              placeholder="例：キッズスペース、テーブル拭き、他の階の情報..."
               value={suggestion}
               onChange={e => setSuggestion(e.target.value)}
               disabled={suggestionSubmitting}

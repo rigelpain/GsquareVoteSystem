@@ -65,6 +65,28 @@ export interface VoteComment {
   hidden?: boolean;
 }
 
+export interface DeviceVisitRecord {
+  deviceId: string;
+  visitCount: number;
+  visitTimestamps: Date[];
+  firstVisitAt: Date;
+  lastVisitAt: Date;
+}
+
+export interface AdminVoteRecord {
+  id: string;
+  deviceId: string;
+  choice: ChoiceId;
+  agreeReason: string;
+  disagreeReason?: string | null;
+  bonusVote: boolean;
+  voteWeight: 1 | 2;
+  createdAt: Date;
+  hidden: boolean;
+  demographic?: DemographicData | null;
+  deviceInfo?: DeviceInfo | null;
+}
+
 export interface DemographicData {
   age: string;
   gender: string;

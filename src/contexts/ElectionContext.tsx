@@ -10,7 +10,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats } from '../firebase/elections';
+import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats, recordVisit } from '../firebase/elections';
 import { checkContent } from '../utils/contentFilter';
 import type { Election, VoteStats, ChoiceId, VotePhase, DemographicData, DeviceInfo } from '../types';
 
@@ -84,6 +84,9 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
         }
 
         setElection(activeElection);
+
+        // 訪問記録（セッション1回のみ Firestore に保存）
+        recordVisit(activeElection.id, uid);
 
         // 投票済みチェック（localStorage）
         const votedKey = `voted_${activeElection.id}`;

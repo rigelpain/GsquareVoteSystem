@@ -14,11 +14,13 @@ import {
   serverTimestamp,
   runTransaction,
   Timestamp,
+  arrayUnion,
+  increment,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from './config';
-import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo } from '../types';
+import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord } from '../types';
 
 // ─── 型変換ヘルパー ───────────────────────────
 function toDate(ts: Timestamp | Date | null | undefined): Date {
@@ -173,6 +175,50 @@ export async function submitSuggestion(params: {
   });
 }
 
+// ─── 管理者：全投票データ購読（demographic/deviceInfo含む） ──
+export function subscribeToAdminVotes(
+  electionId: string,
+  callback: (votes: AdminVoteRecord[]) => void
+): Unsubscribe {
+  const votesRef = collection(db, 'elections', electionId, 'votes');
+  return onSnapshot(votesRef, (snap) => {
+    const votes: AdminVoteRecord[] = snap.docs.map((d) => {
+      const v = d.data();
+      return {
+        id: d.id,
+        deviceId: v.deviceId,
+        choice: v.choice,
+        agreeReason: v.agreeReason,
+        disagreeReason: v.disagreeReason ?? null,
+        bonusVote: v.bonusVote ?? false,
+        voteWeight: v.voteWeight ?? 1,
+        createdAt: toDate(v.createdAt),
+        hidden: v.hidden === true,
+        demographic: v.demographic ?? null,
+        deviceInfo: v.deviceInfo ?? null,
+      };
+    });
+    votes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    callback(votes);
+  });
+}
+
+// ─── 管理者：いいね数集計購読 ────────────────────
+export function subscribeToSympathyCounts(
+  electionId: string,
+  callback: (counts: Record<string, number>) => void
+): Unsubscribe {
+  const sympathiesRef = collection(db, 'elections', electionId, 'sympathies');
+  return onSnapshot(sympathiesRef, (snap) => {
+    const counts: Record<string, number> = {};
+    snap.forEach((d) => {
+      const voteId = d.data().voteId as string | undefined;
+      if (voteId) counts[voteId] = (counts[voteId] ?? 0) + 1;
+    });
+    callback(counts);
+  });
+}
+
 // ─── 管理者：コメント非表示トグル ──────────────
 export async function moderateVote(
   electionId: string,
@@ -198,6 +244,60 @@ export async function addSympathy(params: {
   });
 }
 
+// ─── 再訪記録 ────────────────────────────────
+// sessionStorage で同一セッション内の二重記録を防ぐ
+export async function recordVisit(electionId: string, deviceId: string): Promise<void> {
+  const sessionKey = `visit_recorded_${electionId}`;
+  if (sessionStorage.getItem(sessionKey)) return;
+
+  try {
+    const visitRef = doc(db, 'elections', electionId, 'deviceVisits', deviceId);
+    const visitSnap = await getDoc(visitRef);
+    const now = Timestamp.fromMillis(Date.now());
+
+    if (visitSnap.exists()) {
+      await updateDoc(visitRef, {
+        visitCount: increment(1),
+        visitTimestamps: arrayUnion(now),
+        lastVisitAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(visitRef, {
+        deviceId,
+        visitCount: 1,
+        visitTimestamps: [now],
+        firstVisitAt: serverTimestamp(),
+        lastVisitAt: serverTimestamp(),
+      });
+    }
+    sessionStorage.setItem(sessionKey, '1');
+  } catch (e) {
+    console.error('recordVisit error:', e);
+  }
+}
+
+// ─── 管理者：再訪データ購読 ──────────────────
+export function subscribeToDeviceVisits(
+  electionId: string,
+  callback: (visits: Record<string, DeviceVisitRecord>) => void
+): Unsubscribe {
+  const visitsRef = collection(db, 'elections', electionId, 'deviceVisits');
+  return onSnapshot(visitsRef, (snap) => {
+    const visits: Record<string, DeviceVisitRecord> = {};
+    snap.forEach((d) => {
+      const v = d.data();
+      visits[d.id] = {
+        deviceId: d.id,
+        visitCount: v.visitCount ?? 1,
+        visitTimestamps: ((v.visitTimestamps as Timestamp[]) ?? []).map((t) => toDate(t)),
+        firstVisitAt: toDate(v.firstVisitAt),
+        lastVisitAt: toDate(v.lastVisitAt),
+      };
+    });
+    callback(visits);
+  });
+}
+
 // ─── 管理者：投票リセット ────────────────────
 export async function resetVotes(electionId: string): Promise<void> {
   const votesRef = collection(db, 'elections', electionId, 'votes');
@@ -211,12 +311,12 @@ export async function resetVotes(electionId: string): Promise<void> {
 // ─── 管理者：初期データ投入（開発用） ────────
 export async function seedElection(): Promise<void> {
   const electionData = {
-    title: 'Gスクエアに何を置く？',
-    description: 'あなたの一票でGスクエアが変わる！欲しい設備に投票しよう。',
+    title: 'あなたの「あったらな〜」投票中！',
+    description: '「こんなものGスクエアにあったらな〜」を募集中です',
     optionA: {
       id: 'A',
       title: 'ワイヤレス充電スポット',
-      description: 'スマホを置くだけで充電できる無線給電スポットを設置！',
+      description: 'スマホを置くだけで充電できる<br>無線給電スポットを設置',
       icon: 'BatteryCharging',
       color: '#00C4EE',
       accentColor: '#006A8A',
@@ -225,7 +325,7 @@ export async function seedElection(): Promise<void> {
     optionB: {
       id: 'B',
       title: '電子レンジコーナー',
-      description: '階下で買った冷凍食品をその場で温めて食べられる！',
+      description: '階下で買った冷凍食品をその場で温めて食べられる¥n電子レンジコーナーを設置',
       icon: 'Microwave',
       color: '#FF6B35',
       accentColor: '#B03A10',

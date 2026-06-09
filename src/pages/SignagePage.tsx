@@ -125,14 +125,20 @@ export default function SignagePage() {
   const pctB = total === 0 ? 33 : Math.round((stats.votesB / total) * 100);
   const pctC = 100 - pctA - pctB;
 
-  // コメントを5件ずつページ送りで表示
-  const COMMENT_PAGE_SIZE = 5;
-  const commentPageCount = Math.max(1, Math.ceil(stats.comments.length / COMMENT_PAGE_SIZE));
-  const commentPage = tick % commentPageCount;
-  const pageComments = stats.comments.slice(
-    commentPage * COMMENT_PAGE_SIZE,
-    commentPage * COMMENT_PAGE_SIZE + COMMENT_PAGE_SIZE
+  // C投票のうち自由記述なし（disagreeReasonなし）を除外
+  const TICKER_SIZE = 5;
+  const allComments = stats.comments.filter(
+    (c) => c.choice !== 'C' || !!c.disagreeReason
   );
+  const commentCount = allComments.length;
+
+  // コンベアベルト: 1件ずつ下から上にスクロール
+  const visibleComments = (() => {
+    if (commentCount === 0) return [];
+    if (commentCount <= TICKER_SIZE) return allComments;
+    const start = tick % commentCount;
+    return Array.from({ length: TICKER_SIZE }, (_, i) => allComments[(start + i) % commentCount]);
+  })();
 
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
@@ -170,9 +176,9 @@ export default function SignagePage() {
         <div className="w-full flex flex-row items-stretch gap-1">
           <OptionCard opt={election.optionA} pct={pctA} glowSide="right" />
           <VsBadge />
-          {/* C: どちらもいらない（A・Bの間に配置） */}
+          {/* C: どちらもいらない（A・Bの間に配置、幅2/3） */}
           <div
-            className="flex-1 min-w-0 px-1 py-1.5 rounded-xl text-center border flex flex-col items-center justify-center"
+            className="flex-[0.67] min-w-0 px-1 py-1.5 rounded-xl text-center border flex flex-col items-center justify-center"
             style={{ background: 'rgba(107,114,128,0.10)', borderColor: 'rgba(107,114,128,0.35)', borderStyle: 'dashed' }}
           >
             <div className="mb-0.5">
@@ -220,43 +226,45 @@ export default function SignagePage() {
           </div>
         </div>
 
-        {/* みんなの声（5件スタック・5秒おきに切り替え） */}
-        <AnimatePresence mode="wait">
-          {pageComments.length > 0 && (
-            <motion.div
-              key={commentPage}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24 }}
-              transition={{ duration: 0.6 }}
-              className="w-full mt-0.5"
-            >
-              <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
-              <div className="flex flex-col gap-1">
-                {pageComments.map((c) => {
+        {/* みんなの声（最大5件・1件ずつ下から上にスクロール） */}
+        {visibleComments.length > 0 && (
+          <div className="w-full mt-0.5">
+            <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
+            <div className="flex flex-col gap-1 overflow-hidden">
+              <AnimatePresence mode="popLayout">
+                {visibleComments.map((c) => {
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
                   const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
-                    <div key={c.id} className="rounded-lg px-2.5 py-1.5 flex flex-col gap-0.5" style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}>
+                    <motion.div
+                      key={c.id}
+                      layout
+                      initial={{ y: 40, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -40, opacity: 0 }}
+                      transition={{ duration: 0.45, ease: 'easeInOut' }}
+                      className="rounded-lg px-2.5 py-1.5 flex flex-col gap-0.5"
+                      style={{ background: `${opt.color}26`, border: `1px solid ${opt.color}55` }}
+                    >
                       <div className="flex items-center gap-1.5">
                         <OptionIcon name={opt.icon} size={13} color={opt.lightColor} />
                         <p className="text-white/90 text-[12px] leading-snug truncate flex-1 min-w-0">"{c.agreeReason}"</p>
                       </div>
-                      {c.disagreeReason && opposing && (
+                      {c.disagreeReason && (
                         <div className="flex items-center gap-1 pl-1">
-                          <OptionIcon name={opposing.icon} size={11} color={opposing.lightColor} />
-                          <span className="text-white/50 text-[9px] font-bold flex-shrink-0">に反対</span>
+                          {opposing && <OptionIcon name={opposing.icon} size={11} color={opposing.lightColor} />}
+                          {opposing && <span className="text-white/50 text-[9px] font-bold flex-shrink-0">に反対</span>}
                           <SpikyToken color="#FF5C7A" size={11} />
                           <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">"{c.disagreeReason}"</p>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── 下部：QRコード ────────────────────── */}

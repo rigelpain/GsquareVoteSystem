@@ -864,10 +864,10 @@ function ResultScreen() {
               >
                 <Heart
                   size={12}
-                  fill={done ? opt.color : 'none'}
-                  color={done ? opt.color : 'rgba(255,255,255,0.5)'}
+                  fill={done ? '#FF2D78' : 'none'}
+                  color={done ? '#FF2D78' : 'rgba(255,255,255,0.5)'}
                 />
-                <span className="text-xs" style={{ color: done ? opt.lightColor : 'rgba(255,255,255,0.4)' }}>
+                <span className="text-xs" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
                   {done ? 'ありがとう' : 'いいね'}
                 </span>
               </button>
@@ -888,9 +888,13 @@ function ResultScreen() {
       <div className="text-center">
         {isAlreadyVoted ? (
           <>
-            <BarChart3 size={36} className="text-white/60 mb-2 mx-auto" />
+            <p className="text-white/40 text-sm mb-2">すでに投票済みです</p>
+            <BarChart3 size={32} className="text-white/60 mb-1 mx-auto" />
             <h2 className="text-xl font-black text-white">現在の投票状況</h2>
-            <p className="text-white/50 text-sm mt-1">すでに投票済みです</p>
+            <p className="text-3xl font-black text-white mt-2">
+              {stats.totalVoters}
+              <span className="text-base text-white/60 font-bold ml-1">人が投票中</span>
+            </p>
           </>
         ) : (
           <>
@@ -943,7 +947,7 @@ function ResultScreen() {
       )}
 
       <div className="w-full">
-        <VoteBar election={election} stats={stats} showCounts optionC={OPTION_C} />
+        <VoteBar election={election} stats={stats} showCounts optionC={OPTION_C} showVoterTotal={false} />
       </div>
 
       {/* A / B コメント */}
@@ -990,10 +994,10 @@ function ResultScreen() {
                   >
                     <Heart
                       size={12}
-                      fill={done ? '#6B7280' : 'none'}
-                      color={done ? '#E5E7EB' : 'rgba(255,255,255,0.5)'}
+                      fill={done ? '#FF2D78' : 'none'}
+                      color={done ? '#FF2D78' : 'rgba(255,255,255,0.5)'}
                     />
-                    <span className="text-xs" style={{ color: done ? '#E5E7EB' : 'rgba(255,255,255,0.4)' }}>
+                    <span className="text-xs" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
                       {done ? 'ありがとう' : 'いいね'}
                     </span>
                   </button>

@@ -7,9 +7,10 @@ interface VoteBarProps {
   stats: VoteStats;
   showCounts?: boolean;
   optionC?: ElectionOption;
+  showVoterTotal?: boolean;
 }
 
-export default function VoteBar({ election, stats, showCounts = true, optionC }: VoteBarProps) {
+export default function VoteBar({ election, stats, showCounts = true, optionC, showVoterTotal = true }: VoteBarProps) {
   const total = stats.votesA + stats.votesB + stats.votesC;
 
   if (optionC) {
@@ -23,17 +24,10 @@ export default function VoteBar({ election, stats, showCounts = true, optionC }:
 
     return (
       <div className="w-full select-none">
-        {/* ラベル行 */}
+        {/* ラベル行 — A と B のみ */}
         <div className="flex justify-between items-center mb-2 px-1">
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-bold text-white/80">{election.optionA.title}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs font-bold text-white/50">{optionC.title}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-bold text-white/80">{election.optionB.title}</span>
-          </div>
+          <span className="text-sm font-bold text-white/80">{election.optionA.title}</span>
+          <span className="text-sm font-bold text-white/80">{election.optionB.title}</span>
         </div>
 
         {/* バー本体 */}
@@ -73,13 +67,18 @@ export default function VoteBar({ election, stats, showCounts = true, optionC }:
           </motion.div>
         </div>
 
-        {/* 票数表示 */}
+        {/* どちらもいらない — バー下中央 */}
+        <div className="flex items-center justify-center gap-1.5 mt-1 mb-0.5">
+          <span className="text-white/45 text-xs">{optionC.title}</span>
+          <span className="text-white/55 text-xs font-bold">{rC}%</span>
+          {showCounts && <span className="text-white/35 text-xs">（{stats.votesC}票）</span>}
+        </div>
+
+        {/* 票数表示 — A と B のみ */}
         {showCounts && (
-          <div className="flex justify-between mt-1.5 px-1">
+          <div className="flex justify-between mt-0.5 px-1">
             <span className="text-xs text-white/50">{stats.votesA}票</span>
-            <span className="text-xs text-white/40 text-center">計{stats.totalVoters}人</span>
-            <span className="text-xs text-white/50">{stats.votesC}票</span>
-            <span className="text-xs text-white/40 text-center"></span>
+            {showVoterTotal && <span className="text-xs text-white/40 text-center">計{stats.totalVoters}人</span>}
             <span className="text-xs text-white/50">{stats.votesB}票</span>
           </div>
         )}

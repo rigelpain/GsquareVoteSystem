@@ -4,7 +4,7 @@
 // URL: /signage
 // =============================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
@@ -14,11 +14,7 @@ import SpikyToken from '../components/SpikyToken';
 import { OPTION_C } from '../types';
 import type { Election, ElectionOption, VoteStats } from '../types';
 
-// QRコードはqrcode.reactなどを使うが、
-// 依存を増やさず URLベースのQRサービスを使う（Googleチャートは廃止のため別サービス）
-// 白背景・濃色モジュールにして読み取り用の白マージン（クワイエットゾーン）を確保
 function QRCodeImg({ url, size = 200 }: { url: string; size?: number }) {
-  // api.qrserver.com を使用
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=1A1A2E&format=png`;
   return (
     <div className="bg-white rounded-2xl p-2 inline-block">
@@ -27,7 +23,6 @@ function QRCodeImg({ url, size = 200 }: { url: string; size?: number }) {
   );
 }
 
-// オプションカード（アイコン上・テキスト下の中央揃え、横並び用）
 function OptionCard({ opt, pct, glowSide }: { opt: ElectionOption; pct: number; glowSide: 'left' | 'right' }) {
   return (
     <motion.div
@@ -64,7 +59,6 @@ function OptionCard({ opt, pct, glowSide }: { opt: ElectionOption; pct: number; 
   );
 }
 
-// VS バッジ（カード間の区切り、横並び用）
 function VsBadge() {
   return (
     <div className="flex items-center justify-center relative z-20 flex-shrink-0 -mx-3">
@@ -75,15 +69,21 @@ function VsBadge() {
   );
 }
 
+const TICKER_SIZE = 5;
+
 export default function SignagePage() {
   const [election, setElection] = useState<Election | null>(null);
   const [stats, setStats] = useState<VoteStats>({ votesA: 0, votesB: 0, votesC: 0, totalVoters: 0, comments: [] });
   const [loading, setLoading] = useState(true);
-  const [tick, setTick] = useState(0);
 
-  // 投票URL（本番ではFirebase HostingのURL）
+  // コメントスクローラー用ステート
+  const [batchStart, setBatchStart] = useState(0);   // 現バッチの先頭インデックス
+  const [scrolledOut, setScrolledOut] = useState(0); // 現バッチから何件スクロール済みか
+  const [batchCycle, setBatchCycle] = useState(0);   // 全件一周したら加算（Presenceキー用）
+
   const voteUrl = import.meta.env.VITE_VOTE_URL ?? `${window.location.origin}/`;
 
+  // データ読み込み
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
     (async () => {
@@ -94,15 +94,55 @@ export default function SignagePage() {
       unsubscribe = subscribeToVoteStats(el.id, setStats);
       setLoading(false);
     })();
-
-    // コメントのティッカー更新（8秒間隔）
-    const interval = setInterval(() => setTick((t) => t + 1), 8000);
-
-    return () => {
-      unsubscribe?.();
-      clearInterval(interval);
-    };
+    return () => { unsubscribe?.(); };
   }, []);
+
+  const allComments = useMemo(
+    () => stats.comments.filter((c) => c.choice !== 'C' || !!c.disagreeReason),
+    [stats.comments]
+  );
+  const commentCount = allComments.length;
+
+  // バッチ内の実件数（末尾バッチは5未満の場合あり）
+  const batchLen = Math.min(TICKER_SIZE, Math.max(0, commentCount - batchStart));
+  // 現在表示中のコメント（古い順：上がいちばん古い）
+  const visibleComments = allComments.slice(batchStart + scrolledOut, batchStart + batchLen);
+
+  // 8秒ごとに最古（上端）を1件スクロールアウト
+  // scrolledOut が batchLen に達したらタイマーを止める（batch-switch effect へ）
+  useEffect(() => {
+    if (commentCount === 0) return;
+    if (scrolledOut >= batchLen) return;
+    const id = setTimeout(() => setScrolledOut((v) => v + 1), 8000);
+    return () => clearTimeout(id);
+  }, [commentCount, batchStart, scrolledOut, batchLen]);
+
+  // 全件スクロールアウト後 → 650ms 待って次バッチへ（exit アニメーション完了後に切替）
+  useEffect(() => {
+    if (commentCount === 0 || scrolledOut < batchLen || batchLen === 0) return;
+    const id = setTimeout(() => {
+      const nextStart = batchStart + TICKER_SIZE;
+      if (nextStart >= commentCount) {
+        // 全件一周 → 最初に戻りキーも刷新
+        setBatchCycle((c) => c + 1);
+        setBatchStart(0);
+      } else {
+        setBatchStart(nextStart);
+      }
+      setScrolledOut(0);
+    }, 650);
+    return () => clearTimeout(id);
+  }, [scrolledOut, batchLen, batchStart, commentCount]);
+
+  // コメント数が変わったら先頭からリセット
+  const prevCommentCount = useRef(commentCount);
+  useEffect(() => {
+    if (prevCommentCount.current !== commentCount) {
+      prevCommentCount.current = commentCount;
+      setBatchStart(0);
+      setScrolledOut(0);
+    }
+  }, [commentCount]);
 
   if (loading) {
     return (
@@ -125,25 +165,6 @@ export default function SignagePage() {
   const pctB = total === 0 ? 33 : Math.round((stats.votesB / total) * 100);
   const pctC = 100 - pctA - pctB;
 
-  // C投票のうち自由記述なし（disagreeReasonなし）を除外
-  const TICKER_SIZE = 5;
-  const allComments = stats.comments.filter(
-    (c) => c.choice !== 'C' || !!c.disagreeReason
-  );
-  const commentCount = allComments.length;
-
-  // 折り返しなしのコンベアベルト
-  // windowStart が端に到達したら全件 epoch++（キー変更）で一斉リセット
-  const stepsPerEpoch = Math.max(1, commentCount - TICKER_SIZE + 1);
-  const epoch = commentCount <= TICKER_SIZE ? 0 : Math.floor(tick / stepsPerEpoch);
-  const windowStart = commentCount <= TICKER_SIZE ? 0 : tick % stepsPerEpoch;
-
-  const visibleComments = (() => {
-    if (commentCount === 0) return [];
-    if (commentCount <= TICKER_SIZE) return allComments;
-    return allComments.slice(windowStart, windowStart + TICKER_SIZE);
-  })();
-
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
     <div
@@ -160,27 +181,23 @@ export default function SignagePage() {
 
       {/* ─── 上部：タイトルエリア ────────────────── */}
       <div className="relative z-10 flex-shrink-0 text-center px-6 pt-1.5 pb-0">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-white/50 text-[9px] font-bold tracking-widest mb-0.5">
             みんなでつくるGスクエア
           </p>
-          <h1 className="text-white font-black text-[17px] leading-tight">
-            {election.title}
-          </h1>
+          <h1 className="text-white font-black text-[17px] leading-tight">{election.title}</h1>
           <p className="text-white/60 text-[8px] mt-0.5 leading-snug">{election.description}</p>
           <p className="text-white/40 text-[8px] font-bold mt-0.5">投票期間：6/15 〜 7/15</p>
         </motion.div>
       </div>
 
-      {/* ─── 中央：3択カード（横並び A vs C vs B）+ 投票バー ──────────── */}
+      {/* ─── 中央：3択カード + 投票バー + みんなの声 ──────────── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 gap-0.5 min-h-0 overflow-hidden">
+
+        {/* A vs C vs B カード */}
         <div className="w-full flex flex-row items-stretch gap-1">
           <OptionCard opt={election.optionA} pct={pctA} glowSide="right" />
           <VsBadge />
-          {/* C: どちらもいらない（A・Bの間に配置、幅2/3） */}
           <div
             className="flex-[0.67] min-w-0 px-1 py-1.5 rounded-xl text-center border flex flex-col items-center justify-center"
             style={{ background: 'rgba(107,114,128,0.10)', borderColor: 'rgba(107,114,128,0.35)', borderStyle: 'dashed' }}
@@ -197,7 +214,7 @@ export default function SignagePage() {
           <OptionCard opt={election.optionB} pct={pctB} glowSide="left" />
         </div>
 
-        {/* 投票バー（3択） */}
+        {/* 投票バー */}
         <div className="w-full mt-1">
           <div className="relative w-full h-5 rounded-full overflow-hidden bg-gray-900/60 flex">
             <motion.div
@@ -230,8 +247,8 @@ export default function SignagePage() {
           </div>
         </div>
 
-        {/* みんなの声（最大5件・1件ずつ下から上にスクロール） */}
-        {visibleComments.length > 0 && (
+        {/* みんなの声（最古が上から順に押し出され、0件になったら次バッチが下から浮き上がる） */}
+        {commentCount > 0 && (
           <div className="w-full mt-0.5">
             <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
             <div className="flex flex-col gap-1 overflow-hidden">
@@ -241,7 +258,7 @@ export default function SignagePage() {
                   const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
                     <motion.div
-                      key={commentCount <= TICKER_SIZE ? c.id : `${epoch}_${c.id}`}
+                      key={`${batchCycle}_${c.id}`}
                       layout
                       initial={{ y: 40, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
@@ -275,18 +292,23 @@ export default function SignagePage() {
       <div className="relative z-10 flex-shrink-0 flex flex-col items-center justify-center gap-1 px-6 py-1.5">
         <QRCodeImg url={voteUrl} size={62} />
         <div className="text-center">
-          <motion.div
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="inline-block"
-          >
+          {/* スケール変化ではなく光沢シマーアニメーション */}
+          <div className="relative inline-block overflow-hidden rounded-full">
             <div
               className="px-3.5 py-1 rounded-full font-black text-white text-[12px]"
               style={{ background: 'linear-gradient(135deg, #00C4EE, #FF6B35)' }}
             >
               QRコードをスキャンして投票しよう
             </div>
-          </motion.div>
+            <motion.div
+              className="absolute inset-0 pointer-events-none rounded-full"
+              style={{
+                background: 'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.45) 50%, transparent 65%)',
+              }}
+              animate={{ x: ['-120%', '180%'] }}
+              transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2.8, ease: 'easeInOut' }}
+            />
+          </div>
         </div>
       </div>
 

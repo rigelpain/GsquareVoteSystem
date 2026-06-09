@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MessageCircle } from 'lucide-react';
 import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
 import { OptionIcon } from '../components/OptionIcon';
@@ -271,9 +272,15 @@ export default function SignagePage() {
                       </div>
                       {c.disagreeReason && (
                         <div className="flex items-center gap-1 pl-1">
-                          {opposing && <OptionIcon name={opposing.icon} size={11} color={opposing.lightColor} />}
-                          {opposing && <span className="text-white/50 text-[9px] font-bold flex-shrink-0">に反対</span>}
-                          <SpikyToken color="#FF5C7A" size={11} />
+                          {opposing ? (
+                            <>
+                              <OptionIcon name={opposing.icon} size={11} color={opposing.lightColor} />
+                              <span className="text-white/50 text-[9px] font-bold flex-shrink-0">に反対</span>
+                              <SpikyToken color="#FF5C7A" size={11} />
+                            </>
+                          ) : (
+                            <MessageCircle size={11} color="rgba(255,255,255,0.45)" />
+                          )}
                           <p className="text-white/55 text-[10px] leading-snug italic truncate flex-1 min-w-0">"{c.disagreeReason}"</p>
                         </div>
                       )}

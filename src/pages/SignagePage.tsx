@@ -4,7 +4,7 @@
 // URL: /signage
 // =============================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
@@ -77,9 +77,10 @@ export default function SignagePage() {
   const [loading, setLoading] = useState(true);
 
   // コメントスクローラー用ステート
-  const [batchStart, setBatchStart] = useState(0);   // 現バッチの先頭インデックス
-  const [scrolledOut, setScrolledOut] = useState(0); // 現バッチから何件スクロール済みか
-  const [batchCycle, setBatchCycle] = useState(0);   // 全件一周したら加算（Presenceキー用）
+  // windowTop = 現在ウィンドウ最上段に表示するコメントのインデックス
+  // windowTop >= commentCount になったとき 5枠すべて空 → リセット
+  const [windowTop, setWindowTop] = useState(0);
+  const [cycle, setCycle] = useState(0); // リスタート時にインクリメント（AnimatePresenceキー刷新用）
 
   const voteUrl = import.meta.env.VITE_VOTE_URL ?? `${window.location.origin}/`;
 
@@ -103,46 +104,29 @@ export default function SignagePage() {
   );
   const commentCount = allComments.length;
 
-  // バッチ内の実件数（末尾バッチは5未満の場合あり）
-  const batchLen = Math.min(TICKER_SIZE, Math.max(0, commentCount - batchStart));
-  // 現在表示中のコメント（古い順：上がいちばん古い）
-  const visibleComments = allComments.slice(batchStart + scrolledOut, batchStart + batchLen);
+  // 上端から順に allComments[windowTop+i] を最大 TICKER_SIZE 件表示
+  // windowTop+i >= commentCount の枠は空（スクロールが最後を超えた後の空白）
+  const visibleComments = Array.from({ length: TICKER_SIZE }, (_, i) => {
+    const idx = windowTop + i;
+    return idx < commentCount ? allComments[idx] : null;
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
 
-  // 8秒ごとに最古（上端）を1件スクロールアウト
-  // scrolledOut が batchLen に達したらタイマーを止める（batch-switch effect へ）
+  // 8秒ごとに windowTop++ → ウィンドウが上へ1コマ進む
   useEffect(() => {
-    if (commentCount === 0) return;
-    if (scrolledOut >= batchLen) return;
-    const id = setTimeout(() => setScrolledOut((v) => v + 1), 8000);
+    if (commentCount === 0 || windowTop >= commentCount) return;
+    const id = setTimeout(() => setWindowTop((v) => v + 1), 8000);
     return () => clearTimeout(id);
-  }, [commentCount, batchStart, scrolledOut, batchLen]);
+  }, [commentCount, windowTop]);
 
-  // 全件スクロールアウト後 → 650ms 待って次バッチへ（exit アニメーション完了後に切替）
+  // windowTop >= commentCount → 5枠すべて空 → 650ms後にリスタート
   useEffect(() => {
-    if (commentCount === 0 || scrolledOut < batchLen || batchLen === 0) return;
+    if (commentCount === 0 || windowTop < commentCount) return;
     const id = setTimeout(() => {
-      const nextStart = batchStart + TICKER_SIZE;
-      if (nextStart >= commentCount) {
-        // 全件一周 → 最初に戻りキーも刷新
-        setBatchCycle((c) => c + 1);
-        setBatchStart(0);
-      } else {
-        setBatchStart(nextStart);
-      }
-      setScrolledOut(0);
+      setCycle((c) => c + 1);
+      setWindowTop(0);
     }, 650);
     return () => clearTimeout(id);
-  }, [scrolledOut, batchLen, batchStart, commentCount]);
-
-  // コメント数が変わったら先頭からリセット
-  const prevCommentCount = useRef(commentCount);
-  useEffect(() => {
-    if (prevCommentCount.current !== commentCount) {
-      prevCommentCount.current = commentCount;
-      setBatchStart(0);
-      setScrolledOut(0);
-    }
-  }, [commentCount]);
+  }, [commentCount, windowTop]);
 
   if (loading) {
     return (
@@ -258,7 +242,7 @@ export default function SignagePage() {
                   const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
                     <motion.div
-                      key={`${batchCycle}_${c.id}`}
+                      key={`${cycle}_${c.id}`}
                       layout
                       initial={{ y: 40, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}

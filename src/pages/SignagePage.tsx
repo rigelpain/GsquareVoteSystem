@@ -95,8 +95,8 @@ export default function SignagePage() {
       setLoading(false);
     })();
 
-    // コメントのティッカー更新
-    const interval = setInterval(() => setTick((t) => t + 1), 5000);
+    // コメントのティッカー更新（8秒間隔）
+    const interval = setInterval(() => setTick((t) => t + 1), 8000);
 
     return () => {
       unsubscribe?.();
@@ -132,12 +132,16 @@ export default function SignagePage() {
   );
   const commentCount = allComments.length;
 
-  // コンベアベルト: 1件ずつ下から上にスクロール
+  // 折り返しなしのコンベアベルト
+  // windowStart が端に到達したら全件 epoch++（キー変更）で一斉リセット
+  const stepsPerEpoch = Math.max(1, commentCount - TICKER_SIZE + 1);
+  const epoch = commentCount <= TICKER_SIZE ? 0 : Math.floor(tick / stepsPerEpoch);
+  const windowStart = commentCount <= TICKER_SIZE ? 0 : tick % stepsPerEpoch;
+
   const visibleComments = (() => {
     if (commentCount === 0) return [];
     if (commentCount <= TICKER_SIZE) return allComments;
-    const start = tick % commentCount;
-    return Array.from({ length: TICKER_SIZE }, (_, i) => allComments[(start + i) % commentCount]);
+    return allComments.slice(windowStart, windowStart + TICKER_SIZE);
   })();
 
   return (
@@ -237,7 +241,7 @@ export default function SignagePage() {
                   const opposing = c.choice === 'A' ? election.optionB : c.choice === 'B' ? election.optionA : null;
                   return (
                     <motion.div
-                      key={c.id}
+                      key={commentCount <= TICKER_SIZE ? c.id : `${epoch}_${c.id}`}
                       layout
                       initial={{ y: 40, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}

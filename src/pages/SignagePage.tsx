@@ -17,8 +17,18 @@ import type { Election, ElectionOption, VoteStats } from '../types';
 function QRCodeImg({ url, size = 200 }: { url: string; size?: number }) {
   const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=1A1A2E&format=png`;
   return (
-    <div className="bg-white rounded-2xl p-2 inline-block">
-      <img src={src} width={size} height={size} alt="投票QRコード" />
+    <div
+      className="inline-block p-2"
+      style={{
+        borderRadius: '10px',
+        background: 'rgba(255, 255, 255, 0.82)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.65)',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.95)',
+      }}
+    >
+      <img src={src} width={size} height={size} alt="投票QRコード" style={{ borderRadius: '6px' }} />
     </div>
   );
 }

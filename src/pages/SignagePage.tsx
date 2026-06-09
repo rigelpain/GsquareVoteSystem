@@ -235,7 +235,11 @@ export default function SignagePage() {
         {commentCount > 0 && (
           <div className="w-full mt-0.5">
             <p className="text-[13px] font-bold text-white/60 mb-1">みんなの声</p>
-            <div className="flex flex-col gap-1 overflow-hidden">
+            {/* min-height = 5件分の高さを常に確保（スクロール末尾で空欄ができても縮まない） */}
+            <div
+              className="flex flex-col gap-1 overflow-hidden"
+              style={{ minHeight: `${TICKER_SIZE * 29 + (TICKER_SIZE - 1) * 4}px` }}
+            >
               <AnimatePresence mode="popLayout">
                 {visibleComments.map((c) => {
                   const opt = c.choice === 'A' ? election.optionA : c.choice === 'B' ? election.optionB : OPTION_C;
@@ -282,7 +286,7 @@ export default function SignagePage() {
               className="px-3.5 py-1 rounded-full font-black text-white text-[12px]"
               style={{ background: 'linear-gradient(135deg, #00C4EE, #FF6B35)' }}
             >
-              QRコードをスキャンして投票しよう
+              QRコードをスキャンして投票
             </div>
             <motion.div
               className="absolute inset-0 pointer-events-none rounded-full"

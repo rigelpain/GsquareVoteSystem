@@ -109,8 +109,8 @@ seedElection();
 コレクション: elections
 （新規ドキュメントを作成 → IDをコピー → currentElectionに設定）
 フィールド:
-  title: "Gスクエアに何を置く？"
-  description: "あなたの一票でGスクエアが変わる！欲しい設備に投票しよう。"
+  title: "Gスクエアに「あったらいいな〜」を大募集！"
+  description: "あなたの「あったらいいな〜」から始まる、Gスクエア大アップデート企画です！"
   active: true
   optionA: (map)
     id: "A"

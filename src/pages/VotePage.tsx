@@ -110,10 +110,10 @@ function SegmentedToggle({ id, label, options, value, onChange, required }: {
         )}
       </div>
       <div
-        className="grid rounded-xl p-1 relative transition-all duration-200"
+        className="flex flex-wrap rounded-xl p-1 relative transition-all duration-200"
         style={{
           background: 'rgba(255,255,255,0.06)',
-          gridTemplateColumns: `repeat(${options.length}, 1fr)`,
+          gap: '3px',
           border: required && !value ? '1px solid rgba(255,90,90,0.35)' : '1px solid rgba(255,255,255,0.15)',
         }}
       >
@@ -121,8 +121,11 @@ function SegmentedToggle({ id, label, options, value, onChange, required }: {
           <button
             key={opt}
             onClick={() => onChange(opt)}
-            className="relative py-2 text-xs font-bold z-10 rounded-lg transition-colors duration-150"
-            style={{ color: value === opt ? 'white' : 'rgba(255,255,255,0.35)' }}
+            className="relative py-2 text-xs font-bold z-10 rounded-lg transition-colors duration-150 text-center"
+            style={{
+              color: value === opt ? 'white' : 'rgba(255,255,255,0.35)',
+              flex: options.length > 4 ? '1 0 calc(33.33% - 4px)' : '1 0 0',
+            }}
           >
             {value === opt && (
               <motion.div
@@ -170,7 +173,7 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
   };
 
   return (
-    <div className="min-h-screen ink-bg flex flex-col items-center justify-center px-6 py-10 overflow-y-auto">
+    <div className="min-h-screen ink-bg flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
       <BackgroundParticles colorA="#00C4EE" colorB="#FF6B35" count={6} />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -486,11 +489,11 @@ function ConfirmScreen() {
       {isC ? (
         /* ── C専用：欲しいもの入力（任意）──────── */
         <div>
-          <label className="block text-white font-bold text-sm mb-2 flex items-center gap-2">
-            <Lightbulb size={18} className="text-yellow-400" />
-            <span>欲しいものがあれば教えてください</span>
-            <span className="text-xs bg-yellow-400/20 px-2 py-0.5 rounded-full text-yellow-400">+1票 任意</span>
-          </label>
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-2">
+            <Lightbulb size={18} className="text-yellow-400 flex-shrink-0" />
+            <span className="text-white font-bold text-sm">欲しいものがあれば教えてください</span>
+            <span className="text-xs bg-yellow-400/20 px-2 py-0.5 rounded-full text-yellow-400 flex-shrink-0">+1票 任意</span>
+          </div>
           <textarea
             className="splat-textarea"
             rows={3}
@@ -522,11 +525,11 @@ function ConfirmScreen() {
         /* ── A/B：賛成理由（必須）+ 反対理由（任意）── */
         <>
           <div>
-            <label className="block text-white font-bold text-sm mb-2 flex items-center gap-2">
-              <HeartToken color={chosen.color} size={18} />
-              <span>{chosen.title}に賛成する理由</span>
-              <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70">必須</span>
-            </label>
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-2">
+              <HeartToken color={chosen.color} size={18} className="flex-shrink-0" />
+              <span className="text-white font-bold text-sm">{chosen.title}に賛成する理由</span>
+              <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70 flex-shrink-0">必須</span>
+            </div>
             <textarea
               className="splat-textarea"
               rows={3}
@@ -852,9 +855,9 @@ function ResultScreen() {
                 border: `1px solid ${opt.color}30`,
               }}
             >
-              <p className="text-white/80 text-xs leading-relaxed">{c.agreeReason}</p>
+              <p className="text-white/80 text-[11px] leading-relaxed">{c.agreeReason}</p>
               {c.disagreeReason && (
-                <p className="text-white/35 text-xs mt-1 italic leading-tight">↔ {c.disagreeReason}</p>
+                <p className="text-white/35 text-[10px] mt-1 italic leading-tight">↔ {c.disagreeReason}</p>
               )}
               <button
                 onClick={() => handleSympathy(c.id)}
@@ -867,8 +870,8 @@ function ResultScreen() {
                   fill={done ? '#FF2D78' : 'none'}
                   color={done ? '#FF2D78' : 'rgba(255,255,255,0.5)'}
                 />
-                <span className="text-xs" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
-                  {done ? 'ありがとう' : 'いいね'}
+                <span className="text-[10px]" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
+                  {done ? 'いいね済み' : 'いいね'}
                 </span>
               </button>
             </div>
@@ -985,7 +988,7 @@ function ResultScreen() {
                     border: '1px solid rgba(107,114,128,0.25)',
                   }}
                 >
-                  <p className="text-white/75 text-xs leading-relaxed">{displayText}</p>
+                  <p className="text-white/75 text-[11px] leading-relaxed">{displayText}</p>
                   <button
                     onClick={() => handleSympathy(c.id)}
                     disabled={done}
@@ -993,12 +996,12 @@ function ResultScreen() {
                     style={{ opacity: done ? 1 : 0.45 }}
                   >
                     <Heart
-                      size={12}
+                      size={11}
                       fill={done ? '#FF2D78' : 'none'}
                       color={done ? '#FF2D78' : 'rgba(255,255,255,0.5)'}
                     />
-                    <span className="text-xs" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
-                      {done ? 'ありがとう' : 'いいね'}
+                    <span className="text-[10px]" style={{ color: done ? '#FF6BA8' : 'rgba(255,255,255,0.4)' }}>
+                      {done ? 'いいね済み' : 'いいね'}
                     </span>
                   </button>
                 </div>
@@ -1064,7 +1067,7 @@ function ResultScreen() {
       </div>
 
       <p className="text-white/20 text-xs text-center pb-4">
-        みんなでつくるGスクエア 共創プロジェクト
+        みんなでつくるGスクエア 10周年に向けた大アップデートプロジェクト！
       </p>
     </motion.div>
   );
@@ -1134,12 +1137,11 @@ export default function VotePage() {
       <BackgroundParticles colorA={colorA} colorB={colorB} count={10} />
 
       <header className="relative z-10 flex items-center justify-between px-5 py-4 backdrop-blur-sm border-b border-white/8" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-2">
-          <span className="text-white font-black text-sm tracking-wider">Gスクエア</span>
-          <span className="text-white/30 text-xs">みんなでつくる</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-white font-black text-sm tracking-wider truncate">みんなでつくるGスクエア</span>
         </div>
         {stats.totalVoters > 0 && (
-          <div className="text-white/40 text-xs">
+          <div className="text-white/40 text-xs flex-shrink-0 ml-2">
             {stats.totalVoters}人が投票中
           </div>
         )}

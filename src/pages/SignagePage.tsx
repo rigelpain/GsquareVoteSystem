@@ -260,10 +260,10 @@ export default function SignagePage() {
         </div>
 
         {/* ─── メイン（カード・バー・コメント・カウントダウン・QR） ── */}
-        <div className="relative z-10 flex-1 flex flex-col items-center px-4 min-h-0 overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-evenly px-4 py-3 min-h-0 overflow-hidden">
 
           {/* 上グループ: カード + バー + コメント */}
-          <div className="w-full flex flex-col gap-0.5 pt-1">
+          <div className="w-full flex flex-col gap-0.5 flex-shrink-0">
 
             {/* A vs C vs B カード */}
             <div className="w-full flex flex-row items-stretch gap-1">
@@ -392,11 +392,8 @@ export default function SignagePage() {
             )}
           </div>
 
-          {/* フレキシブルスペーサー */}
-          <div className="flex-1 min-h-1" />
-
           {/* 下グループ: カウントダウン＋QR統合ブロック */}
-          <div className="flex justify-center pb-1">
+          <div className="flex justify-center flex-shrink-0">
             <CountdownCard endAt={election.endAt} isCompact={isCompact} voteUrl={voteUrl} />
           </div>
         </div>

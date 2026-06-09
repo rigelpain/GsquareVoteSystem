@@ -26,7 +26,7 @@ service cloud.firestore {
           request.auth != null
           && voteId == request.auth.uid
           && request.resource.data.deviceId == request.auth.uid
-          && request.resource.data.choice in ['A', 'B']
+          && request.resource.data.choice in ['A', 'B', 'C']
           && request.resource.data.agreeReason is string
           && request.resource.data.agreeReason.size() >= 5
           && request.resource.data.agreeReason.size() <= 200

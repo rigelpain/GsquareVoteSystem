@@ -38,11 +38,10 @@ function CountdownCard({ endAt, isCompact, voteUrl }: { endAt?: Date; isCompact:
   const msLeft = endDate.getTime() - Date.now();
   const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000));
   const qrSize = isCompact ? 56 : 72;
-  const labelSize = isCompact ? '9px' : '10px';
 
   return (
     <div
-      className="flex flex-col items-center justify-center text-center"
+      className="flex flex-col items-center text-center"
       style={{
         padding: isCompact ? '10px 16px' : '14px 20px',
         borderRadius: '16px',
@@ -52,24 +51,24 @@ function CountdownCard({ endAt, isCompact, voteUrl }: { endAt?: Date; isCompact:
       }}
     >
       {/* 投票期間 */}
-      <p style={{ fontSize: labelSize, color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.05em' }}>
+      <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.05em' }}>
         投票期間：6/15〜7/15
       </p>
       {/* 投票終了まで */}
       <div>
-        <p style={{ fontSize: labelSize, color: 'rgba(255,255,255,0.55)', fontWeight: 700, lineHeight: 1.2 }}>
+        <p style={{ fontSize: isCompact ? '9px' : '10px', color: 'rgba(255,255,255,0.55)', fontWeight: 700, lineHeight: 1.2 }}>
           投票終了まで
         </p>
         <p style={{ fontSize: isCompact ? '30px' : '38px', color: '#00C4EE', fontWeight: 900, lineHeight: 1 }}>
           {daysLeft}
-          <span style={{ fontSize: labelSize, fontWeight: 900 }}>日</span>
+          <span style={{ fontSize: isCompact ? '15px' : '19px', fontWeight: 900 }}>日</span>
         </p>
       </div>
       {/* QRコード */}
       <QRCodeImg url={voteUrl} size={qrSize} compact={isCompact} />
       {/* スキャンラベル */}
       <p style={{
-        fontSize: labelSize,
+        fontSize: isCompact ? '8px' : '9px',
         color: 'rgba(0,196,238,0.75)',
         fontWeight: 700,
         letterSpacing: '0.04em',

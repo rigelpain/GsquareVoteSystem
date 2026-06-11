@@ -102,7 +102,7 @@ function OptionCard({ opt, pct, glowSide, compact = false }: {
           <OptionIcon name={opt.icon} size={compact ? 14 : 20} />
         </div>
         <h2
-          className={`font-black ${compact ? 'text-[9px]' : 'text-[12px]'} leading-tight`}
+          className={`font-black ${compact ? 'text-[11px]' : 'text-[14px]'} leading-tight`}
           style={{ color: opt.lightColor }}
         >
           {opt.title}

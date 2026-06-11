@@ -49,7 +49,7 @@ export interface VoteStats {
 export const OPTION_C: ElectionOption = {
   id: 'C',
   title: 'どちらもいらない',
-  description: '別のアイデアがある！欲しいものを教えてください',
+  description: 'どっちも「う〜ん...」とピンとこない',
   icon: 'XCircle',
   color: '#6B7280',
   accentColor: '#374151',

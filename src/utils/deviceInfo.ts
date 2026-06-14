@@ -1,4 +1,32 @@
-import type { DeviceInfo } from '../types';
+import type { DeviceInfo, SessionEnv } from '../types';
+
+// セッション用の環境情報（同期収集・IP取得無し → 起動直後に即記録可能）
+export function collectSessionEnv(): SessionEnv {
+  const nav = navigator as Navigator & {
+    userAgentData?: {
+      platform?: string;
+      mobile?: boolean;
+      brands?: { brand: string; version: string }[];
+    };
+  };
+
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    devicePixelRatio: window.devicePixelRatio,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    uaData: nav.userAgentData
+      ? {
+          platform: nav.userAgentData.platform,
+          mobile: nav.userAgentData.mobile,
+          brands: nav.userAgentData.brands,
+        }
+      : null,
+  };
+}
 
 export async function collectDeviceInfo(): Promise<DeviceInfo> {
   const info: DeviceInfo = {

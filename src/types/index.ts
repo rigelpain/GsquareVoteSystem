@@ -102,6 +102,39 @@ export interface DeviceInfo {
   ipAddress?: string;
 }
 
+// ─── セッション行動ログ（環境・滞在時間・離脱画面） ──
+export interface SessionEnv {
+  userAgent: string;
+  platform: string;
+  language: string;
+  screenWidth: number;
+  screenHeight: number;
+  devicePixelRatio: number;
+  timezone: string;
+  // Chromium系のみ取得可。OS/ブラウザの正確な種別
+  uaData?: {
+    platform?: string;
+    mobile?: boolean;
+    brands?: { brand: string; version: string }[];
+  } | null;
+}
+
+export interface PhaseLogEntry {
+  phase: VotePhase;
+  enteredAt: number;   // epoch ms
+  durationMs: number;  // この画面の滞在時間
+}
+
+export interface SessionRecord {
+  deviceId: string;
+  env: SessionEnv;
+  phaseLog: PhaseLogEntry[];
+  lastPhase: VotePhase;   // 最後にいた画面（= 離脱画面）
+  completed: boolean;     // 投票完遂したか
+  disconnectAt: Date | null; // 離脱（タブ非表示）を検知した時刻
+  updatedAt: Date;
+}
+
 // 投票後のアニメーション状態
 export type VotePhase =
   | 'idle'        // 未投票

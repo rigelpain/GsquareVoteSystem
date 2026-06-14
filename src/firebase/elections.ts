@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from './config';
-import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord } from '../types';
+import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord, SessionEnv, PhaseLogEntry, SessionRecord } from '../types';
 
 // ─── 型変換ヘルパー ───────────────────────────
 function toDate(ts: Timestamp | Date | null | undefined): Date {
@@ -274,6 +274,65 @@ export async function recordVisit(electionId: string, deviceId: string): Promise
   } catch (e) {
     console.error('recordVisit error:', e);
   }
+}
+
+// ─── セッション行動ログを記録（upsert） ────────
+// sessionId = auth.uid（1端末1ドキュメント・最新セッションで上書き）。
+// フェーズ遷移毎・離脱検知時に丸ごと上書きする軽量設計。
+// onSnapshot接続中の書込なので sendBeacon/Functions 不要。取りこぼし（クラッシュ・電源断）は許容。
+export async function upsertSession(
+  electionId: string,
+  deviceId: string,
+  data: {
+    env: SessionEnv;
+    phaseLog: PhaseLogEntry[];
+    lastPhase: string;
+    completed: boolean;
+    disconnectAt?: number | null;
+  }
+): Promise<void> {
+  try {
+    const ref = doc(db, 'elections', electionId, 'sessions', deviceId);
+    await setDoc(
+      ref,
+      {
+        deviceId,
+        env: data.env,
+        phaseLog: data.phaseLog,
+        lastPhase: data.lastPhase,
+        completed: data.completed,
+        disconnectAt: data.disconnectAt ? Timestamp.fromMillis(data.disconnectAt) : null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error('upsertSession error:', e);
+  }
+}
+
+// ─── 管理者：セッションデータ購読 ────────────
+export function subscribeToSessions(
+  electionId: string,
+  callback: (sessions: Record<string, SessionRecord>) => void
+): Unsubscribe {
+  const sessionsRef = collection(db, 'elections', electionId, 'sessions');
+  return onSnapshot(sessionsRef, (snap) => {
+    const sessions: Record<string, SessionRecord> = {};
+    snap.forEach((d) => {
+      const v = d.data();
+      sessions[d.id] = {
+        deviceId: d.id,
+        env: v.env,
+        phaseLog: (v.phaseLog ?? []) as PhaseLogEntry[],
+        lastPhase: v.lastPhase,
+        completed: v.completed === true,
+        disconnectAt: v.disconnectAt ? toDate(v.disconnectAt) : null,
+        updatedAt: toDate(v.updatedAt),
+      };
+    });
+    callback(sessions);
+  });
 }
 
 // ─── 管理者：再訪データ購読 ──────────────────

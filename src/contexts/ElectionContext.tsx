@@ -8,11 +8,13 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
-import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats, recordVisit } from '../firebase/elections';
+import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats, recordVisit, upsertSession } from '../firebase/elections';
+import { collectSessionEnv } from '../utils/deviceInfo';
 import { checkContent } from '../utils/contentFilter';
-import type { Election, VoteStats, ChoiceId, VotePhase, DemographicData, DeviceInfo } from '../types';
+import type { Election, VoteStats, ChoiceId, VotePhase, DemographicData, DeviceInfo, PhaseLogEntry, SessionEnv } from '../types';
 
 // ─── State型 ─────────────────────────────────
 interface ElectionState {
@@ -67,6 +69,13 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
   const [demographicData, setDemographicData] = useState<DemographicData | null>(null);
   const [deviceInfo, setDeviceInfoState] = useState<DeviceInfo | null>(null);
 
+  // ─── セッション行動ログ用 ref（再レンダー非依存） ──
+  const sessionEnvRef = useRef<SessionEnv | null>(null);
+  if (!sessionEnvRef.current) sessionEnvRef.current = collectSessionEnv();
+  const phaseLogRef = useRef<PhaseLogEntry[]>([]);
+  const phaseEnteredAtRef = useRef<number>(Date.now());
+  const prevPhaseRef = useRef<VotePhase>('idle');
+
   // 初期化：匿名認証 + 選挙データ取得
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
@@ -106,6 +115,58 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe?.();
   }, []);
+
+  // ─── フェーズ遷移ごとに滞在時間を記録（接続中に直書込） ──
+  useEffect(() => {
+    if (!election || !deviceId) return;
+    const now = Date.now();
+
+    // 直前フェーズの滞在時間を確定してログに積む
+    if (prevPhaseRef.current !== phase) {
+      phaseLogRef.current.push({
+        phase: prevPhaseRef.current,
+        enteredAt: phaseEnteredAtRef.current,
+        durationMs: now - phaseEnteredAtRef.current,
+      });
+      phaseEnteredAtRef.current = now;
+      prevPhaseRef.current = phase;
+    }
+
+    upsertSession(election.id, deviceId, {
+      env: sessionEnvRef.current!,
+      phaseLog: phaseLogRef.current,
+      lastPhase: phase,
+      completed: phase === 'animating' || phase === 'result',
+    });
+  }, [phase, election, deviceId]);
+
+  // ─── 離脱検知（タブ非表示）：その時点の画面を記録 ──
+  useEffect(() => {
+    if (!election || !deviceId) return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const now = Date.now();
+      const log = [
+        ...phaseLogRef.current,
+        {
+          phase: prevPhaseRef.current,
+          enteredAt: phaseEnteredAtRef.current,
+          durationMs: now - phaseEnteredAtRef.current,
+        },
+      ];
+      upsertSession(election.id, deviceId, {
+        env: sessionEnvRef.current!,
+        phaseLog: log,
+        lastPhase: prevPhaseRef.current,
+        completed: prevPhaseRef.current === 'animating' || prevPhaseRef.current === 'result',
+        disconnectAt: now,
+      });
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [election, deviceId]);
 
   const selectChoice = useCallback((choice: ChoiceId) => {
     setSelectedChoice(choice);

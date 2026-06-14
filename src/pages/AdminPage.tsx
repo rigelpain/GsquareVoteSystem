@@ -5,16 +5,44 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, MessageCircle, Heart, EyeOff, Eye, Users, Monitor } from 'lucide-react';
+import { BarChart3, MessageCircle, Heart, EyeOff, Eye, Users, Monitor, Activity } from 'lucide-react';
 import {
   getActiveElection, subscribeToVoteStats, resetVotes, moderateVote,
-  subscribeToAdminVotes, subscribeToSympathyCounts, subscribeToDeviceVisits,
+  subscribeToAdminVotes, subscribeToSympathyCounts, subscribeToDeviceVisits, subscribeToSessions,
 } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
 import { OptionIcon } from '../components/OptionIcon';
 import SpikyToken from '../components/SpikyToken';
 import { OPTION_C } from '../types';
-import type { Election, VoteStats, AdminVoteRecord, DeviceVisitRecord } from '../types';
+import type { Election, VoteStats, AdminVoteRecord, DeviceVisitRecord, SessionRecord, VotePhase } from '../types';
+
+// フェーズ → 日本語ラベル
+const PHASE_LABEL: Record<VotePhase, string> = {
+  idle: '選択画面',
+  selecting: '選択中',
+  confirming: '理由入力',
+  submitting: '送信中',
+  animating: '結果演出',
+  result: '結果表示',
+  already_voted: '投票済み',
+};
+
+function fmtDuration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}秒`;
+  return `${Math.floor(s / 60)}分${s % 60}秒`;
+}
+
+// 環境情報を1行に要約
+function summarizeEnv(env: SessionRecord['env']): string {
+  if (!env) return '—';
+  if (env.uaData?.platform) {
+    const mobile = env.uaData.mobile ? 'モバイル' : 'PC';
+    const brand = env.uaData.brands?.find(b => !/Not.?A.?Brand/i.test(b.brand));
+    return `${env.uaData.platform} / ${brand ? brand.brand : ''} (${mobile})`;
+  }
+  return env.platform || env.userAgent.slice(0, 40);
+}
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? 'gsquare2024';
 
@@ -27,11 +55,12 @@ export default function AdminPage() {
   const [adminVotes, setAdminVotes] = useState<AdminVoteRecord[]>([]);
   const [sympathyCounts, setSympathyCounts] = useState<Record<string, number>>({});
   const [deviceVisits, setDeviceVisits] = useState<Record<string, DeviceVisitRecord>>({});
+  const [sessions, setSessions] = useState<Record<string, SessionRecord>>({});
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [filter, setFilter] = useState<'all' | 'A' | 'B' | 'C'>('all');
-  const [activeTab, setActiveTab] = useState<'comments' | 'devices'>('comments');
+  const [activeTab, setActiveTab] = useState<'comments' | 'devices' | 'sessions'>('comments');
 
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) {
@@ -48,6 +77,7 @@ export default function AdminPage() {
     let unsubVotes: (() => void) | null = null;
     let unsubSympathy: (() => void) | null = null;
     let unsubVisits: (() => void) | null = null;
+    let unsubSessions: (() => void) | null = null;
 
     setLoading(true);
     (async () => {
@@ -59,10 +89,11 @@ export default function AdminPage() {
       unsubVotes = subscribeToAdminVotes(el.id, setAdminVotes);
       unsubSympathy = subscribeToSympathyCounts(el.id, setSympathyCounts);
       unsubVisits = subscribeToDeviceVisits(el.id, setDeviceVisits);
+      unsubSessions = subscribeToSessions(el.id, setSessions);
       setLoading(false);
     })();
 
-    return () => { unsubStats?.(); unsubVotes?.(); unsubSympathy?.(); unsubVisits?.(); };
+    return () => { unsubStats?.(); unsubVotes?.(); unsubSympathy?.(); unsubVisits?.(); unsubSessions?.(); };
   }, [authed]);
 
   const handleReset = async () => {
@@ -237,6 +268,16 @@ export default function AdminPage() {
                 }}
               >
                 <Users size={14} /> 端末詳細
+              </button>
+              <button
+                onClick={() => setActiveTab('sessions')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
+                style={{
+                  background: activeTab === 'sessions' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  color: activeTab === 'sessions' ? 'white' : 'rgba(255,255,255,0.4)',
+                }}
+              >
+                <Activity size={14} /> 行動ログ
               </button>
             </div>
 
@@ -488,6 +529,87 @@ export default function AdminPage() {
                 </p>
               </div>
             )}
+
+            {/* ─── 行動ログタブ ─── */}
+            {activeTab === 'sessions' && (() => {
+              const sessionList = Object.values(sessions)
+                .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+              const completedCount = sessionList.filter(s => s.completed).length;
+              const abandonedCount = sessionList.length - completedCount;
+
+              return (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Activity size={16} className="text-white/60" />
+                    <h2 className="text-white font-bold">
+                      行動ログ（{sessionList.length}セッション・完遂{completedCount}／離脱{abandonedCount}）
+                    </h2>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-white/10" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <table className="w-full text-xs text-white/80" style={{ minWidth: '1000px', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.07)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          {['No.', '状態', '最後の画面', '画面ごとの滞在時間', '環境', '画面/言語/TZ', '最終更新'].map((h) => (
+                            <th key={h} className="text-left px-3 py-2.5 text-white/50 font-bold text-[11px] whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sessionList.map((s, i) => (
+                          <tr
+                            key={s.deviceId}
+                            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                            className="hover:bg-white/5 transition-colors"
+                          >
+                            <td className="px-3 py-2 text-white/30 font-mono">{i + 1}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {s.completed ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold text-[10px] text-white" style={{ background: '#22A565' }}>完遂</span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold text-[10px] text-white" style={{ background: '#C0432F' }}>離脱</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-white/80 font-bold">
+                              {PHASE_LABEL[s.lastPhase] ?? s.lastPhase}
+                            </td>
+                            <td className="px-3 py-2 max-w-[280px]">
+                              <div className="flex flex-wrap gap-1">
+                                {s.phaseLog.length === 0 ? (
+                                  <span className="text-white/20">—</span>
+                                ) : s.phaseLog.map((p, j) => (
+                                  <span key={j} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-white/60 whitespace-nowrap">
+                                    {PHASE_LABEL[p.phase] ?? p.phase}
+                                    <span className="text-white/40 font-mono">{fmtDuration(p.durationMs)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-white/60 max-w-[200px]">
+                              <span className="truncate block" title={s.env?.userAgent}>{summarizeEnv(s.env)}</span>
+                            </td>
+                            <td className="px-3 py-2 text-white/50 whitespace-nowrap font-mono text-[10px]">
+                              {s.env ? `${s.env.screenWidth}×${s.env.screenHeight}@${s.env.devicePixelRatio}x / ${s.env.language} / ${s.env.timezone}` : '—'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-white/50">
+                              {s.updatedAt.toLocaleDateString('ja-JP', {
+                                month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {sessionList.length === 0 && (
+                      <p className="text-white/30 text-sm text-center py-8">行動ログがありません</p>
+                    )}
+                  </div>
+                  <p className="text-white/20 text-xs text-center mt-3">
+                    ※「離脱」はタブ非表示／別画面遷移を検知したセッション。ブラウザのクラッシュ・電源断は記録できないため取りこぼしあり
+                  </p>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

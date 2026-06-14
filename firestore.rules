@@ -54,6 +54,17 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ─── セッション行動ログ ───────────────────────
+      match /sessions/{sessionDeviceId} {
+        allow read: if request.auth != null;
+        // 自分のuidドキュメントのみ作成・更新可（荒らし防止）
+        allow create, update: if
+          request.auth != null
+          && sessionDeviceId == request.auth.uid
+          && request.resource.data.deviceId == request.auth.uid;
+        allow delete: if false;
+      }
+
       // ─── 共感 ─────────────────────────────────────
       match /sympathies/{sympathyId} {
         allow read: if request.auth != null;

@@ -252,7 +252,8 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
             className="mt-0.5 w-4 h-4 flex-shrink-0 accent-[#00C4EE]"
           />
           <span className="text-white/55 text-xs leading-relaxed">
-            収集した情報（年齢・性別・利用頻度・端末情報）は、Gスクエアの施設運営改善の目的にのみ使用し、それ以外での使用・第三者提供は行いません。
+            収集した情報（年齢・性別・利用頻度・端末情報・アプリの利用状況）は、Gスクエアの施設運営改善の目的にのみ使用し、それ以外での使用・第三者提供は行いません。
+            重複投票の防止やアプリの動作のため、Cookie等の端末への保存技術を利用することに同意します。
           </span>
         </label>
 

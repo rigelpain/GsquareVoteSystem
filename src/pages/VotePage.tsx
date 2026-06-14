@@ -43,9 +43,9 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
 
         <div className="glass-panel w-full p-5">
           <p className="text-white font-black text-lg leading-snug mb-4">
-            Gスクエアに<br />
-            <span style={{ color: '#49deffff' }}>新しく置かれるなら</span><br />
-            どっち！？
+            あなたの、Gスクエアに<br />
+            <span style={{ color: '#49deffff' }}>「あったらいいな〜」</span><br />
+            はどっち！？
           </p>
           <div className="flex items-center justify-center gap-6">
             <div className="flex flex-col items-center gap-2">

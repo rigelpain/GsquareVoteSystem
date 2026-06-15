@@ -11,6 +11,9 @@ import {
   updateDoc,
   getDocs,
   onSnapshot,
+  query,
+  orderBy,
+  limit,
   serverTimestamp,
   runTransaction,
   Timestamp,
@@ -67,7 +70,57 @@ export async function getActiveElection(): Promise<Election | null> {
   }
 }
 
-// ─── 投票状況をリアルタイムで監視 ───────────
+// ─── 票数カウンタを購読（一般画面用・全件購読しない） ──
+// Cloud Functions が集計した /stats/counter を購読。read 1件で済む。
+export function subscribeToVoteCounts(
+  electionId: string,
+  callback: (counts: { votesA: number; votesB: number; votesC: number; totalVoters: number }) => void
+): Unsubscribe {
+  const ref = doc(db, 'elections', electionId, 'stats', 'counter');
+  return onSnapshot(ref, (snap) => {
+    const v = snap.data();
+    callback({
+      votesA: v?.votesA ?? 0,
+      votesB: v?.votesB ?? 0,
+      votesC: v?.votesC ?? 0,
+      totalVoters: v?.totalVoters ?? 0,
+    });
+  });
+}
+
+// ─── 最新コメントを購読（一般画面用・最大30件） ──
+// orderBy(createdAt desc) + limit(30)。全件購読を避けて read を抑える。
+// hidden はクライアントで除外（30件中の非表示分は表示されない＝許容）。
+export function subscribeToRecentComments(
+  electionId: string,
+  callback: (comments: VoteStats['comments']) => void,
+  max = 30
+): Unsubscribe {
+  const q = query(
+    collection(db, 'elections', electionId, 'votes'),
+    orderBy('createdAt', 'desc'),
+    limit(max)
+  );
+  return onSnapshot(q, (snap) => {
+    const comments: VoteStats['comments'] = [];
+    snap.forEach((d) => {
+      const v = d.data();
+      if (v.hidden === true) return;
+      comments.push({
+        id: d.id,
+        choice: v.choice,
+        agreeReason: v.agreeReason,
+        disagreeReason: v.disagreeReason,
+        createdAt: toDate(v.createdAt),
+        hidden: false,
+      });
+    });
+    callback(comments);
+  });
+}
+
+// ─── 投票状況をリアルタイムで監視（管理者専用・全件購読） ──
+// コメントモデレーション・端末詳細に全件が要るため、管理画面でのみ使用する。
 export function subscribeToVoteStats(
   electionId: string,
   callback: (stats: VoteStats) => void,

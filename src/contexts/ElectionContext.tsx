@@ -11,7 +11,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { ensureAuth, getActiveElection, submitVote, subscribeToVoteStats, recordVisit, upsertSession } from '../firebase/elections';
+import { ensureAuth, getActiveElection, submitVote, subscribeToVoteCounts, subscribeToRecentComments, recordVisit, upsertSession } from '../firebase/elections';
 import { collectSessionEnv } from '../utils/deviceInfo';
 import { checkContent } from '../utils/contentFilter';
 import type { Election, VoteStats, ChoiceId, VotePhase, DemographicData, DeviceInfo, PhaseLogEntry, SessionEnv } from '../types';
@@ -79,7 +79,8 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
 
   // 初期化：匿名認証 + 選挙データ取得
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
+    let unsubCounts: (() => void) | null = null;
+    let unsubComments: (() => void) | null = null;
 
     (async () => {
       try {
@@ -104,8 +105,13 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
           setPhase('already_voted');
         }
 
-        // リアルタイム購読
-        unsubscribe = subscribeToVoteStats(activeElection.id, setStats);
+        // リアルタイム購読：票数はカウンタ1件、コメントは最新30件のみ（全件購読しない）
+        unsubCounts = subscribeToVoteCounts(activeElection.id, (counts) =>
+          setStats((prev) => ({ ...prev, ...counts }))
+        );
+        unsubComments = subscribeToRecentComments(activeElection.id, (comments) =>
+          setStats((prev) => ({ ...prev, comments }))
+        );
         setLoading(false);
       } catch (e) {
         console.error(e);
@@ -114,7 +120,7 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    return () => unsubscribe?.();
+    return () => { unsubCounts?.(); unsubComments?.(); };
   }, []);
 
   // ─── フェーズ遷移ごとに滞在時間を記録（接続中に直書込） ──

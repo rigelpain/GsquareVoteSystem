@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
-import { getActiveElection, subscribeToVoteStats } from '../firebase/elections';
+import { getActiveElection, subscribeToVoteCounts, subscribeToRecentComments } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
 import { OptionIcon } from '../components/OptionIcon';
 import BackgroundParticles from '../components/BackgroundParticles';
@@ -157,16 +157,23 @@ export default function SignagePage() {
   const voteUrl = import.meta.env.VITE_VOTE_URL ?? `${window.location.origin}/`;
 
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
+    let unsubCounts: (() => void) | null = null;
+    let unsubComments: (() => void) | null = null;
     (async () => {
       await ensureAuth();
       const el = await getActiveElection();
       if (!el) { setLoading(false); return; }
       setElection(el);
-      unsubscribe = subscribeToVoteStats(el.id, setStats);
+      // 票数はカウンタ1件、コメントは最新30件のみ（全件購読しない）
+      unsubCounts = subscribeToVoteCounts(el.id, (counts) =>
+        setStats((prev) => ({ ...prev, ...counts }))
+      );
+      unsubComments = subscribeToRecentComments(el.id, (comments) =>
+        setStats((prev) => ({ ...prev, comments }))
+      );
       setLoading(false);
     })();
-    return () => { unsubscribe?.(); };
+    return () => { unsubCounts?.(); unsubComments?.(); };
   }, []);
 
   const allComments = useMemo(

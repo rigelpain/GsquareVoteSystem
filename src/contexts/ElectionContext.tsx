@@ -70,8 +70,9 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
   const [deviceInfo, setDeviceInfoState] = useState<DeviceInfo | null>(null);
 
   // ─── セッション行動ログ用 ref（再レンダー非依存） ──
+  // 収集はイントロ画面では行わず、同意完了後にのみ開始する（trackingEnabled）。
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
   const sessionEnvRef = useRef<SessionEnv | null>(null);
-  if (!sessionEnvRef.current) sessionEnvRef.current = collectSessionEnv();
   const phaseLogRef = useRef<PhaseLogEntry[]>([]);
   const phaseEnteredAtRef = useRef<number>(Date.now());
   const prevPhaseRef = useRef<VotePhase>('idle');
@@ -118,7 +119,7 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
 
   // ─── フェーズ遷移ごとに滞在時間を記録（接続中に直書込） ──
   useEffect(() => {
-    if (!election || !deviceId) return;
+    if (!trackingEnabled || !election || !deviceId) return;
     const now = Date.now();
 
     // 直前フェーズの滞在時間を確定してログに積む
@@ -138,11 +139,11 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
       lastPhase: phase,
       completed: phase === 'animating' || phase === 'result',
     });
-  }, [phase, election, deviceId]);
+  }, [phase, election, deviceId, trackingEnabled]);
 
   // ─── 離脱検知（タブ非表示）：その時点の画面を記録 ──
   useEffect(() => {
-    if (!election || !deviceId) return;
+    if (!trackingEnabled || !election || !deviceId) return;
 
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'hidden') return;
@@ -166,7 +167,7 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [election, deviceId]);
+  }, [election, deviceId, trackingEnabled]);
 
   const selectChoice = useCallback((choice: ChoiceId) => {
     setSelectedChoice(choice);
@@ -222,7 +223,12 @@ export function ElectionProvider({ children }: { children: ReactNode }) {
   const setDemographicAndDevice = useCallback((d: DemographicData, dev: DeviceInfo) => {
     setDemographicData(d);
     setDeviceInfoState(dev);
-  }, []);
+    // 同意完了 → ここで初めて環境収集・行動ログ記録を開始する
+    if (!sessionEnvRef.current) sessionEnvRef.current = collectSessionEnv();
+    phaseEnteredAtRef.current = Date.now();
+    prevPhaseRef.current = phase;
+    setTrackingEnabled(true);
+  }, [phase]);
 
   const value: ElectionContextValue = {
     election,

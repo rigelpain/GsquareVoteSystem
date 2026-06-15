@@ -43,7 +43,7 @@ function IntroScreen({ onNext }: { onNext: () => void }) {
 
         <div className="glass-panel w-full p-5">
           <p className="text-white font-black text-lg leading-snug mb-4">
-            あなたの、Gスクエアに<br />
+            Gスクエアに<br />
             <span style={{ color: '#49deffff' }}>「あったらいいな〜」</span><br />
             はどっち！？
           </p>
@@ -149,8 +149,18 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
   const [usageFrequency, setUsageFrequency] = useState('');
-  const [consentChecked, setConsentChecked] = useState(false);
+  const [consents, setConsents] = useState<[boolean, boolean, boolean]>([false, false, false]);
   const [loading, setLoading] = useState(false);
+
+  const allConsented = consents.every(Boolean);
+  const toggleConsent = (i: number) =>
+    setConsents(prev => prev.map((v, idx) => (idx === i ? !v : v)) as [boolean, boolean, boolean]);
+
+  const consentTexts = [
+    '収集した情報（年齢・性別・利用頻度・端末情報・アプリの利用状況）は、Gスクエアの施設運営改善および学術的研究にのみ使用し、それ以外での使用・第三者提供は行いません。',
+    '当サイトでは、サービスの向上や利便性の改善、アクセス解析のためにCookieを使用しています。',
+    'Cookieの使用に同意します。',
+  ];
   const deviceInfoRef = useRef<Awaited<ReturnType<typeof collectDeviceInfo>> | null>(null);
 
   useEffect(() => {
@@ -162,7 +172,7 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
     { icon: <Lock size={18} className="text-white/60 flex-shrink-0 mt-0.5" />, text: '投票は取り消しできません' },
   ];
 
-  const canSubmit = age && gender && usageFrequency && consentChecked && !loading;
+  const canSubmit = age && gender && usageFrequency && allConsented && !loading;
 
   const handleConsent = async () => {
     if (!canSubmit) return;
@@ -244,18 +254,19 @@ function ConsentModal({ onConsent, onBack }: { onConsent: () => void; onBack: ()
           />
         </div>
 
-        <label className="flex items-start gap-3 cursor-pointer mb-5">
-          <input
-            type="checkbox"
-            checked={consentChecked}
-            onChange={e => setConsentChecked(e.target.checked)}
-            className="mt-0.5 w-4 h-4 flex-shrink-0 accent-[#00C4EE]"
-          />
-          <span className="text-white/55 text-xs leading-relaxed">
-            収集した情報（年齢・性別・利用頻度・端末情報・アプリの利用状況）は、Gスクエアの施設運営改善の目的にのみ使用し、それ以外での使用・第三者提供は行いません。
-            重複投票の防止やアプリの動作のため、Cookie等の端末への保存技術を利用することに同意します。
-          </span>
-        </label>
+        <div className="flex flex-col gap-3 mb-5">
+          {consentTexts.map((text, i) => (
+            <label key={i} className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consents[i]}
+                onChange={() => toggleConsent(i)}
+                className="mt-0.5 w-4 h-4 flex-shrink-0 accent-[#00C4EE]"
+              />
+              <span className="text-white/55 text-xs leading-relaxed">{text}</span>
+            </label>
+          ))}
+        </div>
 
         <motion.button
           whileTap={{ scale: 0.97 }}

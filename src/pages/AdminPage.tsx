@@ -5,16 +5,17 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, MessageCircle, Heart, EyeOff, Eye, Users, Monitor, Activity } from 'lucide-react';
+import { BarChart3, MessageCircle, Heart, EyeOff, Eye, Users, Monitor, Activity, Lightbulb } from 'lucide-react';
 import {
   getActiveElection, subscribeToVoteStats, resetVotes, moderateVote,
   subscribeToAdminVotes, subscribeToSympathyCounts, subscribeToDeviceVisits, subscribeToSessions,
+  subscribeToSuggestions,
 } from '../firebase/elections';
 import { ensureAuth } from '../firebase/elections';
 import { OptionIcon } from '../components/OptionIcon';
 import SpikyToken from '../components/SpikyToken';
 import { OPTION_C } from '../types';
-import type { Election, VoteStats, AdminVoteRecord, DeviceVisitRecord, SessionRecord, VotePhase } from '../types';
+import type { Election, VoteStats, AdminVoteRecord, DeviceVisitRecord, SessionRecord, VotePhase, SuggestionRecord } from '../types';
 
 // フェーズ → 日本語ラベル
 const PHASE_LABEL: Record<VotePhase, string> = {
@@ -56,11 +57,12 @@ export default function AdminPage() {
   const [sympathyCounts, setSympathyCounts] = useState<Record<string, number>>({});
   const [deviceVisits, setDeviceVisits] = useState<Record<string, DeviceVisitRecord>>({});
   const [sessions, setSessions] = useState<Record<string, SessionRecord>>({});
+  const [suggestions, setSuggestions] = useState<SuggestionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [filter, setFilter] = useState<'all' | 'A' | 'B' | 'C'>('all');
-  const [activeTab, setActiveTab] = useState<'comments' | 'devices' | 'sessions'>('comments');
+  const [activeTab, setActiveTab] = useState<'comments' | 'devices' | 'sessions' | 'suggestions'>('comments');
 
   const handleLogin = () => {
     if (pw === ADMIN_PASSWORD) {
@@ -78,6 +80,7 @@ export default function AdminPage() {
     let unsubSympathy: (() => void) | null = null;
     let unsubVisits: (() => void) | null = null;
     let unsubSessions: (() => void) | null = null;
+    let unsubSuggestions: (() => void) | null = null;
 
     setLoading(true);
     (async () => {
@@ -90,10 +93,11 @@ export default function AdminPage() {
       unsubSympathy = subscribeToSympathyCounts(el.id, setSympathyCounts);
       unsubVisits = subscribeToDeviceVisits(el.id, setDeviceVisits);
       unsubSessions = subscribeToSessions(el.id, setSessions);
+      unsubSuggestions = subscribeToSuggestions(el.id, setSuggestions);
       setLoading(false);
     })();
 
-    return () => { unsubStats?.(); unsubVotes?.(); unsubSympathy?.(); unsubVisits?.(); unsubSessions?.(); };
+    return () => { unsubStats?.(); unsubVotes?.(); unsubSympathy?.(); unsubVisits?.(); unsubSessions?.(); unsubSuggestions?.(); };
   }, [authed]);
 
   const handleReset = async () => {
@@ -281,6 +285,16 @@ export default function AdminPage() {
                 }}
               >
                 <Activity size={14} /> 行動ログ
+              </button>
+              <button
+                onClick={() => setActiveTab('suggestions')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
+                style={{
+                  background: activeTab === 'suggestions' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  color: activeTab === 'suggestions' ? 'white' : 'rgba(255,255,255,0.4)',
+                }}
+              >
+                <Lightbulb size={14} /> 自由記述
               </button>
             </div>
 
@@ -613,6 +627,36 @@ export default function AdminPage() {
                 </div>
               );
             })()}
+
+            {/* ─── 自由記述タブ ─── */}
+            {activeTab === 'suggestions' && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb size={16} className="text-white/60" />
+                  <h2 className="text-white font-bold">自由記述・その他要望（{suggestions.length}件）</h2>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {suggestions.map((s) => (
+                    <div
+                      key={s.id}
+                      className="rounded-xl border border-white/10 px-4 py-3"
+                      style={{ background: 'rgba(255,255,255,0.04)' }}
+                    >
+                      <p className="text-white/85 text-sm leading-relaxed whitespace-pre-wrap break-words">{s.text}</p>
+                      <p className="text-white/30 text-[11px] mt-1.5">
+                        {s.createdAt.toLocaleString('ja-JP', {
+                          month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  ))}
+                  {suggestions.length === 0 && (
+                    <p className="text-white/30 text-sm text-center py-8">自由記述データがありません</p>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

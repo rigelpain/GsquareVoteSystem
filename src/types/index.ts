@@ -87,6 +87,13 @@ export interface AdminVoteRecord {
   deviceInfo?: DeviceInfo | null;
 }
 
+export interface SuggestionRecord {
+  id: string;
+  deviceId: string;
+  text: string;
+  createdAt: Date;
+}
+
 export interface DemographicData {
   age: string;
   gender: string;

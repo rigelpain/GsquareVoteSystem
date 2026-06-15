@@ -23,7 +23,7 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from './config';
-import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord, SessionEnv, PhaseLogEntry, SessionRecord } from '../types';
+import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord, SessionEnv, PhaseLogEntry, SessionRecord, SuggestionRecord } from '../types';
 
 // ─── 型変換ヘルパー ───────────────────────────
 function toDate(ts: Timestamp | Date | null | undefined): Date {
@@ -225,6 +225,27 @@ export async function submitSuggestion(params: {
     deviceId: params.deviceId,
     text: params.text,
     createdAt: serverTimestamp(),
+  });
+}
+
+// ─── 管理者：自由記述（その他要望）購読 ──────────
+export function subscribeToSuggestions(
+  electionId: string,
+  callback: (suggestions: SuggestionRecord[]) => void
+): Unsubscribe {
+  const ref = collection(db, 'elections', electionId, 'suggestions');
+  return onSnapshot(ref, (snap) => {
+    const list: SuggestionRecord[] = snap.docs.map((d) => {
+      const v = d.data();
+      return {
+        id: d.id,
+        deviceId: v.deviceId,
+        text: v.text,
+        createdAt: toDate(v.createdAt),
+      };
+    });
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    callback(list);
   });
 }
 

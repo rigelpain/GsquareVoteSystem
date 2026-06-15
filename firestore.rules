@@ -92,7 +92,8 @@ service cloud.firestore {
 
       // ─── 自由記述提案 ────────────────────────────
       match /suggestions/{suggestionId} {
-        allow read: if false;
+        // 管理画面（認証済み）から閲覧可。他のadmin専用データと同方針
+        allow read: if request.auth != null;
         allow create: if
           request.auth != null
           && request.resource.data.deviceId == request.auth.uid

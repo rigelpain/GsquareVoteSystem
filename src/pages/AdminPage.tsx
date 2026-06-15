@@ -100,8 +100,11 @@ export default function AdminPage() {
     if (!election) return;
     setResetting(true);
     try {
-      await resetVotes(election.id);
+      await resetVotes(election.id, ADMIN_PASSWORD);
       setResetConfirm(false);
+    } catch (e) {
+      console.error('resetVotes error:', e);
+      alert('リセットに失敗しました。パスワード設定やFunctionsのデプロイ状況を確認してください。');
     } finally {
       setResetting(false);
     }

@@ -28,3 +28,6 @@ dist-ssr
 
 # Cloud Functions ビルド成果物
 functions/lib
+
+# Functions 環境変数（パスワード等・コミットしない）
+functions/.env

@@ -9,7 +9,6 @@ import {
   setDoc,
   addDoc,
   updateDoc,
-  getDocs,
   onSnapshot,
   query,
   orderBy,
@@ -22,7 +21,8 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { db, auth } from './config';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from './config';
 import type { Election, VoteStats, ChoiceId, DemographicData, DeviceInfo, AdminVoteRecord, DeviceVisitRecord, SessionEnv, PhaseLogEntry, SessionRecord } from '../types';
 
 // ─── 型変換ヘルパー ───────────────────────────
@@ -411,13 +411,15 @@ export function subscribeToDeviceVisits(
 }
 
 // ─── 管理者：投票リセット ────────────────────
-export async function resetVotes(electionId: string): Promise<void> {
-  const votesRef = collection(db, 'elections', electionId, 'votes');
-  const snap = await getDocs(votesRef);
-  const promises = snap.docs.map((d) =>
-    runTransaction(db, async (tx) => tx.delete(d.ref))
+// votes はルールで delete 禁止のため、Cloud Functions（admin SDK）経由で削除する。
+// パスワードは Functions 側（process.env.ADMIN_PASSWORD）で再検証される。
+export async function resetVotes(electionId: string, password: string): Promise<number> {
+  const fn = httpsCallable<{ electionId: string; password: string }, { deleted: number }>(
+    functions,
+    'resetElectionVotes'
   );
-  await Promise.all(promises);
+  const res = await fn({ electionId, password });
+  return res.data.deleted;
 }
 
 // ─── 管理者：初期データ投入（開発用） ────────

@@ -30,7 +30,14 @@ service cloud.firestore {
           && request.resource.data.agreeReason is string
           && request.resource.data.agreeReason.size() >= 5
           && request.resource.data.agreeReason.size() <= 200
-          && request.resource.data.voteWeight in [1, 2];
+          && request.resource.data.voteWeight in [1, 2]
+          // 反対理由のサイズ制限（巨大ペイロード書込防止）
+          && (
+            !('disagreeReason' in request.resource.data)
+            || request.resource.data.disagreeReason == null
+            || (request.resource.data.disagreeReason is string
+                && request.resource.data.disagreeReason.size() <= 300)
+          );
 
         // hidden フィールドのみ更新可（管理者による非表示操作）
         allow update: if
@@ -54,14 +61,23 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ─── 票数カウンタ（Functions集計・読み取り専用） ──
+      match /stats/{statDoc} {
+        allow read: if true;
+        allow write: if false; // 書き込みは Cloud Functions（admin SDK）のみ
+      }
+
       // ─── セッション行動ログ ───────────────────────
       match /sessions/{sessionDeviceId} {
         allow read: if request.auth != null;
         // 自分のuidドキュメントのみ作成・更新可（荒らし防止）
+        // phaseLog配列長を制限してスパム書込を防止
         allow create, update: if
           request.auth != null
           && sessionDeviceId == request.auth.uid
-          && request.resource.data.deviceId == request.auth.uid;
+          && request.resource.data.deviceId == request.auth.uid
+          && request.resource.data.phaseLog is list
+          && request.resource.data.phaseLog.size() <= 60;
         allow delete: if false;
       }
 

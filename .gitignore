@@ -25,3 +25,6 @@ dist-ssr
 
 .firebase
 .firebaserc
+
+# Cloud Functions ビルド成果物
+functions/lib

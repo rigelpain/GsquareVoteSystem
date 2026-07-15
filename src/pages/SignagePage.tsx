@@ -34,7 +34,7 @@ function QRCodeImg({ url, size = 200, compact = false }: { url: string; size?: n
 
 // ─── カウントダウン＋QR統合ブロック ─────────
 function CountdownCard({ endAt, isCompact, voteUrl }: { endAt?: Date; isCompact: boolean; voteUrl: string }) {
-  const endDate = endAt ?? new Date('2026-07-15');
+  const endDate = endAt ?? new Date('2026-07-31');
   const msLeft = endDate.getTime() - Date.now();
   const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000));
   const qrSize = isCompact ? 56 : 72;
@@ -52,7 +52,7 @@ function CountdownCard({ endAt, isCompact, voteUrl }: { endAt?: Date; isCompact:
     >
       {/* 投票期間 */}
       <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.05em' }}>
-        投票期間：6/15〜7/15
+        投票期間：6/15〜7/31
       </p>
       {/* 投票終了まで */}
       <div>
